@@ -139,6 +139,30 @@ async function seedProgramMdIntoIndexedDb() {
   }
 }
 
+async function getBundledFileContent(path) {
+  // Prefer IndexedDB (offline), fall back to network (first load).
+  try {
+    const db = await openDb();
+    const existing = await new Promise((resolve, reject) => {
+      const tx = db.transaction('files', 'readonly');
+      const req = tx.objectStore('files').get(path);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    if (existing?.content) return String(existing.content);
+  } catch {
+    // fall through
+  }
+
+  try {
+    const res = await fetch(path);
+    if (!res.ok) return '';
+    return await res.text();
+  } catch {
+    return '';
+  }
+}
+
 // ---------- Storage ----------
 function loadState() {
   try {
@@ -247,6 +271,117 @@ function parseTargetReps(value, sets) {
   return target;
 }
 
+function parseExampleProgramFromMarkdown(markdown) {
+  const lines = String(markdown || '').split(/\r?\n/);
+  const days = [];
+  let inExample = false;
+  let currentDay = null;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    if (line.startsWith('## ')) {
+      const heading = line.slice(3).trim();
+      if (/^example program/i.test(heading)) {
+        inExample = true;
+        continue;
+      }
+      if (inExample) break;
+    }
+
+    if (!inExample) continue;
+
+    if (line.startsWith('### ')) {
+      const heading = line.slice(4).trim();
+      const name =
+        (heading.includes('—') ? heading.split('—').pop() : heading.includes('–') ? heading.split('–').pop() : heading)
+          .trim() || heading;
+      currentDay = { name, items: [] };
+      days.push(currentDay);
+      continue;
+    }
+
+    if (!currentDay) continue;
+    if (!line.startsWith('- ')) continue;
+
+    const bullet = line.slice(2).trim();
+    const parts = bullet.includes('—')
+      ? bullet.split('—')
+      : bullet.includes('–')
+        ? bullet.split('–')
+        : bullet.includes(' - ')
+          ? bullet.split(' - ')
+          : [bullet];
+
+    if (parts.length < 2) continue;
+    const exerciseName = parts[0].trim();
+    const rhs = parts.slice(1).join('-').trim();
+    const match = rhs.match(/(\d+)\s*x\s*([0-9,\s]+)/i);
+    if (!exerciseName || !match) continue;
+
+    const sets = parseInt(match[1], 10);
+    if (Number.isNaN(sets) || sets < 1) continue;
+
+    const repsNumbers = (match[2].match(/\d+/g) || []).map(n => parseInt(n, 10)).filter(n => !Number.isNaN(n));
+    const repsCsv = repsNumbers.length ? repsNumbers.join(',') : '';
+    currentDay.items.push({ exerciseName, sets, repsCsv });
+  }
+
+  return { programName: 'Example Program', days };
+}
+
+async function importExampleProgramFromBundledMarkdown() {
+  const md = await getBundledFileContent('program.md');
+  if (!md) {
+    alert('Could not load program.md. Make sure it exists in your GitHub Pages build and reload.');
+    return;
+  }
+
+  const parsed = parseExampleProgramFromMarkdown(md);
+  if (!parsed.days.length) {
+    alert('No example days found in program.md.');
+    return;
+  }
+
+  const exerciseIdByName = new Map(state.exercises.map(ex => [ex.name.trim().toLowerCase(), ex.id]));
+  const getOrCreateExerciseId = (name) => {
+    const key = String(name || '').trim().toLowerCase();
+    if (!key) return null;
+    const existingId = exerciseIdByName.get(key);
+    if (existingId) return existingId;
+    const ex = { id: uid(), name: String(name).trim() };
+    state.exercises.push(ex);
+    exerciseIdByName.set(key, ex.id);
+    return ex.id;
+  };
+
+  const program = { id: uid(), name: parsed.programName, nextDayIndex: 0, days: [] };
+  parsed.days.forEach(d => {
+    const day = { id: uid(), name: d.name, items: [] };
+    d.items.forEach(item => {
+      const exerciseId = getOrCreateExerciseId(item.exerciseName);
+      if (!exerciseId) return;
+      day.items.push({
+        id: uid(),
+        exerciseId,
+        sets: item.sets,
+        targetReps: parseTargetReps(item.repsCsv, item.sets)
+      });
+    });
+    program.days.push(day);
+  });
+
+  state.programs.push(program);
+  state.ui.defaultProgramId = program.id;
+  saveState();
+
+  selectedProgramId = program.id;
+  selectedDayId = program.days[0]?.id || null;
+  showScreen('programDetail');
+  render();
+}
+
 function getDefaultProgramId() {
   if (state.ui.defaultProgramId && findProgram(state.ui.defaultProgramId)) return state.ui.defaultProgramId;
   return state.programs[0]?.id || '';
@@ -294,7 +429,29 @@ tabButtons.forEach(btn => {
 function renderPrograms() {
   programList.innerHTML = '';
   if (!state.programs.length) {
-    programList.innerHTML = '<li class="muted">Create your first program.</li>';
+    const li = document.createElement('li');
+    const left = document.createElement('div');
+    left.className = 'muted';
+    left.textContent = 'Create your first program, or load the built-in example.';
+
+    const actions = document.createElement('div');
+    actions.className = 'row';
+    const loadExample = document.createElement('button');
+    loadExample.className = 'btn ghost';
+    loadExample.type = 'button';
+    loadExample.textContent = 'Load Example';
+    loadExample.onclick = async () => {
+      try {
+        await importExampleProgramFromBundledMarkdown();
+      } catch (e) {
+        console.error('Failed to load example program', e);
+        alert('Failed to load the example program.');
+      }
+    };
+    actions.append(loadExample);
+
+    li.append(left, actions);
+    programList.appendChild(li);
     return;
   }
 

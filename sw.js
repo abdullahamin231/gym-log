@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gym-log-shell-v2';
+const CACHE_NAME = 'gym-log-shell-v3';
 // App shell caching only (user data lives in localStorage/IndexedDB).
 // Keep paths relative so it works from subpaths (e.g. GitHub Pages).
 const APP_SHELL = [
