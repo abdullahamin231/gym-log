@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0b0c10">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <title>Gym Log</title>
+</head>
+<body class="app">
+  <header class="app-header">
+    <div class="app-title">
+      <div class="app-name">Gym Log</div>
+      <div id="headerSubtitle" class="app-subtitle">Offline-first</div>
+    </div>
+    <button id="installBtn" class="btn ghost" type="button" style="display:none">Install</button>
+  </header>
+
+  <nav class="tabbar" aria-label="Primary navigation">
+    <button class="tab active" data-nav="programs" type="button">Programs</button>
+    <button class="tab" data-nav="exercises" type="button">Exercises</button>
+    <button class="tab" data-nav="session" type="button">Session</button>
+    <button class="tab" data-nav="history" type="button">History</button>
+  </nav>
+
+  <main class="app-main">
+    <!-- Programs (root) -->
+    <section class="screen" id="screen-programs" data-screen="programs">
+      <div class="card">
+        <div class="section-head">
+          <h2>Programs</h2>
+        </div>
+        <form id="programForm" class="inline-form">
+          <input name="programName" type="text" placeholder="New program" required autocomplete="off">
+          <button class="btn" type="submit">Add</button>
+        </form>
+        <ul id="programList" class="list"></ul>
+      </div>
+    </section>
+
+    <!-- Program detail (days + day builder) -->
+    <section class="screen hidden" id="screen-program-detail" data-screen="programDetail">
+      <div class="card">
+        <div class="section-head">
+          <button id="backToProgramsBtn" class="btn ghost" type="button">Back</button>
+          <h2 id="programDetailTitle">Program</h2>
+          <div class="row">
+            <button id="renameProgramBtn" class="btn ghost" type="button">Rename</button>
+            <button id="deleteProgramBtn" class="btn ghost danger" type="button">Delete</button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="section-head">
+          <h3>Days</h3>
+        </div>
+        <form id="dayForm" class="inline-form">
+          <input name="dayName" type="text" placeholder="Add day (e.g. Push)" required autocomplete="off">
+          <button class="btn" type="submit">Add</button>
+        </form>
+        <ul id="dayList" class="list"></ul>
+
+        <div class="divider"></div>
+
+        <div id="dayEditor" class="day-editor hidden">
+          <div class="section-head">
+            <h3 id="dayEditorTitle">Day</h3>
+            <div class="row">
+              <button id="renameDayBtn" class="btn ghost" type="button">Rename</button>
+              <button id="deleteDayBtn" class="btn ghost danger" type="button">Delete</button>
+            </div>
+          </div>
+
+          <form id="dayItemForm" class="stacked">
+            <label>
+              Exercise
+              <select id="dayItemExerciseSelect" required></select>
+            </label>
+            <div class="split">
+              <label>Sets <input name="sets" type="number" min="1" value="3" required></label>
+              <label>Target reps <input name="target" type="text" placeholder="8 or 8,8,6" required></label>
+            </div>
+            <button class="btn" type="submit">Add To Day</button>
+            <div class="muted">Tip: Manage the exercise list in the Exercises tab.</div>
+          </form>
+
+          <ul id="dayItemList" class="list"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Exercises library -->
+    <section class="screen hidden" id="screen-exercises" data-screen="exercises">
+      <div class="card">
+        <div class="section-head">
+          <h2>Exercises</h2>
+        </div>
+        <form id="exerciseForm" class="inline-form">
+          <input name="exerciseName" type="text" placeholder="New exercise (e.g. Bench Press)" required autocomplete="off">
+          <button class="btn" type="submit">Add</button>
+        </form>
+        <ul id="exerciseList" class="list"></ul>
+      </div>
+    </section>
+
+    <!-- Session -->
+    <section class="screen hidden" id="screen-session" data-screen="session">
+      <div class="card" id="sessionSetupCard">
+        <div class="section-head">
+          <h2>Start Session</h2>
+        </div>
+
+        <form id="sessionSetupForm" class="stacked">
+          <label>
+            Program
+            <select id="sessionProgramSelect" required></select>
+          </label>
+          <label class="toggle">
+            <input id="pickDayToggle" type="checkbox">
+            <span>Pick a specific day (optional)</span>
+          </label>
+          <label id="sessionDayLabel" class="hidden">
+            Day
+            <select id="sessionDaySelect"></select>
+          </label>
+          <div id="nextDayHint" class="muted"></div>
+          <button id="startSessionBtn" class="btn" type="submit">Start</button>
+        </form>
+      </div>
+
+      <div class="card" id="sessionRunCard">
+        <div class="section-head">
+          <h2>Current Session</h2>
+          <button id="completeSessionBtn" class="btn ghost danger" type="button">Complete</button>
+        </div>
+        <div id="sessionStatus" class="status">No active session.</div>
+        <div id="sessionControls" class="session hidden">
+          <div class="current">
+            <div class="exercise-head">
+              <button id="prevExerciseBtn" class="btn ghost" type="button" aria-label="Previous exercise">◀</button>
+              <button id="nextExerciseBtn" class="btn ghost" type="button" aria-label="Next exercise">▶</button>
+              <div class="label">Current Exercise</div>
+            </div>
+            <div id="currentExercise"></div>
+            <div id="setProgress" class="muted"></div>
+          </div>
+          <div id="setsGrid" class="sets-grid" aria-label="Sets grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- History -->
+    <section class="screen hidden" id="screen-history" data-screen="history">
+      <div class="card">
+        <div class="section-head">
+          <h2>History</h2>
+          <button id="clearHistoryBtn" class="btn ghost danger" type="button">Clear All</button>
+        </div>
+        <div class="history-chart">
+          <label>
+            Exercise progress
+            <select id="historyExerciseSelect"></select>
+          </label>
+          <div id="historyChartEmpty" class="muted"></div>
+          <canvas id="historyChart" class="chart" width="600" height="280" aria-label="Exercise progress chart"></canvas>
+        </div>
+        <div class="divider"></div>
+        <div class="section-head">
+          <h3>Backup</h3>
+          <div class="row">
+            <button id="exportBtn" class="btn ghost" type="button">Download</button>
+            <button id="importBtn" class="btn ghost" type="button">Upload</button>
+            <input id="importFile" type="file" accept="application/json" class="hidden">
+          </div>
+        </div>
+        <ul id="historyList" class="list history"></ul>
+      </div>
+    </section>
+  </main>
+
+  <template id="historyTemplate">
+    <li class="history-item">
+      <div class="history-meta"></div>
+      <div class="history-exercises"></div>
+    </li>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
