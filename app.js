@@ -332,15 +332,22 @@ function parseExampleProgramFromMarkdown(markdown) {
 }
 
 async function importExampleProgramFromBundledMarkdown() {
+  return importExampleProgramFromBundledMarkdownImpl({ silent: false });
+}
+
+async function importExampleProgramFromBundledMarkdownImpl(options) {
+  const { silent } = options || {};
   const md = await getBundledFileContent('program.md');
   if (!md) {
-    alert('Could not load program.md. Make sure it exists in your GitHub Pages build and reload.');
+    if (!silent) {
+      alert('Could not load program.md. Make sure it exists in your GitHub Pages build and reload.');
+    }
     return;
   }
 
   const parsed = parseExampleProgramFromMarkdown(md);
   if (!parsed.days.length) {
-    alert('No example days found in program.md.');
+    if (!silent) alert('No example days found in program.md.');
     return;
   }
 
@@ -380,6 +387,21 @@ async function importExampleProgramFromBundledMarkdown() {
   selectedDayId = program.days[0]?.id || null;
   showScreen('programDetail');
   render();
+}
+
+async function autoImportExampleProgramIfEmpty() {
+  if (state.programs.length) return;
+  state.ui ||= {};
+  if (state.ui.exampleProgramImported) return;
+
+  try {
+    await importExampleProgramFromBundledMarkdownImpl({ silent: true });
+    if (!state.programs.length) return;
+    state.ui.exampleProgramImported = true;
+    saveState();
+  } catch (e) {
+    console.warn('Auto-import example program skipped:', e);
+  }
 }
 
 function getDefaultProgramId() {
@@ -1381,6 +1403,9 @@ if ('serviceWorker' in navigator) {
 }
 
 // ---------- Boot ----------
-showScreen('programs');
-render();
-seedProgramMdIntoIndexedDb();
+(async function boot() {
+  showScreen('programs');
+  render();
+  await seedProgramMdIntoIndexedDb();
+  await autoImportExampleProgramIfEmpty();
+})();
