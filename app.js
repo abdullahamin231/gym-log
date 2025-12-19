@@ -1324,18 +1324,26 @@ function renderSetsGrid() {
       logEntry.sets[i].weight = raw === '' ? null : parseFloat(raw);
     });
 
-    row.append(label, repsInput, weightInput);
+    row.append(label, weightInput, repsInput);
 
     if (prev?.sets?.length) {
       const prevSet = prev.sets[i];
       const prevLine = document.createElement('div');
       prevLine.className = 'set-prev';
       if (!prevSet) {
-        prevLine.textContent = 'Last: —';
+        prevLine.textContent = 'Last —';
       } else {
-        const reps = prevSet.reps ?? '—';
-        const weight = prevSet.weight ?? null;
-        prevLine.textContent = `Last: ${reps}${weight != null ? ` @ ${weight}` : ''}`;
+        const reps = typeof prevSet.reps === 'number' ? prevSet.reps : null;
+        const weight = typeof prevSet.weight === 'number' ? prevSet.weight : null;
+        if (reps == null && weight == null) {
+          prevLine.textContent = 'Last —';
+        } else if (reps != null && weight != null) {
+          prevLine.textContent = `Last ${weight}kg for ${reps}reps`;
+        } else if (weight != null) {
+          prevLine.textContent = `Last ${weight}kg for —`;
+        } else {
+          prevLine.textContent = `Last — for ${reps}reps`;
+        }
       }
       row.appendChild(prevLine);
     }
