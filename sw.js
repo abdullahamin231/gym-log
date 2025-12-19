@@ -35,14 +35,45 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  const isNavigation = request.mode === 'navigate';
+  const isShellAsset =
+    isNavigation ||
+    url.pathname.endsWith('/index.html') ||
+    url.pathname.endsWith('/app.js') ||
+    url.pathname.endsWith('/styles.css') ||
+    url.pathname.endsWith('/manifest.json') ||
+    url.pathname.includes('/icons/');
+
+  const cacheAndReturn = async response => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, response.clone());
+    return response;
+  };
+
+  // Network-first for navigations and core shell assets so updates land without bumping CACHE_NAME.
+  // Falls back to cache for offline support.
+  if (isShellAsset) {
+    event.respondWith(
+      fetch(request)
+        .then(cacheAndReturn)
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          // Navigation fallback: serve cached index.html if available.
+          if (isNavigation) return caches.match('index.html');
+          throw new Error('Network error and no cached response');
+        })
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for everything else: fast responses + background updates.
   event.respondWith(
     caches.match(request).then(cached => {
-      if (cached) return cached;
-      return fetch(request).then(response => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
-        return response;
-      }).catch(() => cached);
+      const fetchPromise = fetch(request)
+        .then(cacheAndReturn)
+        .catch(() => null);
+      return cached || fetchPromise;
     })
   );
 });
