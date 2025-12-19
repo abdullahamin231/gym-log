@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gym-log-shell-v3';
+const CACHE_NAME = 'gym-log-shell-v4';
 // App shell caching only (user data lives in localStorage/IndexedDB).
 // Keep paths relative so it works from subpaths (e.g. GitHub Pages).
 const APP_SHELL = [
@@ -7,7 +7,6 @@ const APP_SHELL = [
   'styles.css',
   'app.js',
   'manifest.json',
-  'program.md',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/icon.svg',

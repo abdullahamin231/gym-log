@@ -130,7 +130,7 @@ function ensureTargetRepsLength(targetReps, sets) {
   return next;
 }
 
-// ---------- IndexedDB (for app-bundled docs / future growth) ----------
+// ---------- IndexedDB (future growth / backups) ----------
 function openDb() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(dbName, dbVersion);
@@ -143,61 +143,6 @@ function openDb() {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
-}
-
-async function seedProgramMdIntoIndexedDb() {
-  try {
-    const db = await openDb();
-    const existing = await new Promise((resolve, reject) => {
-      const tx = db.transaction('files', 'readonly');
-      const req = tx.objectStore('files').get('program.md');
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-    if (existing) return;
-
-    const res = await fetch('program.md');
-    if (!res.ok) return;
-    const content = await res.text();
-
-    await new Promise((resolve, reject) => {
-      const tx = db.transaction('files', 'readwrite');
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-      tx.objectStore('files').put({
-        path: 'program.md',
-        content,
-        createdAt: new Date().toISOString()
-      });
-    });
-  } catch (e) {
-    // Best-effort seed. App must still work without IndexedDB.
-    console.warn('IndexedDB seed skipped:', e);
-  }
-}
-
-async function getBundledFileContent(path) {
-  // Prefer IndexedDB (offline), fall back to network (first load).
-  try {
-    const db = await openDb();
-    const existing = await new Promise((resolve, reject) => {
-      const tx = db.transaction('files', 'readonly');
-      const req = tx.objectStore('files').get(path);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-    if (existing?.content) return String(existing.content);
-  } catch {
-    // fall through
-  }
-
-  try {
-    const res = await fetch(path);
-    if (!res.ok) return '';
-    return await res.text();
-  } catch {
-    return '';
-  }
 }
 
 // ---------- Storage ----------
@@ -230,6 +175,7 @@ function applyImportedState(next) {
 function ensureUiDefaults() {
   state.ui ||= {};
   if (typeof state.ui.defaultProgramId !== 'string') state.ui.defaultProgramId = '';
+  if (typeof state.ui.defaultProgramSeeded !== 'boolean') state.ui.defaultProgramSeeded = false;
 }
 
 function migrateIfNeeded(parsed) {
@@ -308,89 +254,28 @@ function parseTargetReps(value, sets) {
   return target;
 }
 
-function parseExampleProgramFromMarkdown(markdown) {
-  const lines = String(markdown || '').split(/\r?\n/);
-  const days = [];
-  let inExample = false;
-  let currentDay = null;
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line) continue;
-
-    if (line.startsWith('## ')) {
-      const heading = line.slice(3).trim();
-      if (/^example program/i.test(heading)) {
-        inExample = true;
-        continue;
-      }
-      if (inExample) break;
-    }
-
-    if (!inExample) continue;
-
-    if (line.startsWith('### ')) {
-      const heading = line.slice(4).trim();
-      const name =
-        (heading.includes('—') ? heading.split('—').pop() : heading.includes('–') ? heading.split('–').pop() : heading)
-          .trim() || heading;
-      currentDay = { name, items: [] };
-      days.push(currentDay);
-      continue;
-    }
-
-    if (!currentDay) continue;
-    if (!line.startsWith('- ')) continue;
-
-    const bullet = line.slice(2).trim();
-    const parts = bullet.includes('—')
-      ? bullet.split('—')
-      : bullet.includes('–')
-        ? bullet.split('–')
-        : bullet.includes(' - ')
-          ? bullet.split(' - ')
-          : [bullet];
-
-    if (parts.length < 2) continue;
-    const exerciseName = parts[0].trim();
-    const rhs = parts.slice(1).join('-').trim();
-    const match = rhs.match(/(\d+)\s*x\s*([0-9,\s]+)/i);
-    if (!exerciseName || !match) continue;
-
-    const sets = parseInt(match[1], 10);
-    if (Number.isNaN(sets) || sets < 1) continue;
-
-    const repsNumbers = (match[2].match(/\d+/g) || []).map(n => parseInt(n, 10)).filter(n => !Number.isNaN(n));
-    const repsCsv = repsNumbers.length ? repsNumbers.join(',') : '';
-    currentDay.items.push({ exerciseName, sets, repsCsv });
-  }
-
-  return { programName: 'Example Program', days };
+function formatTarget(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return '—';
+  return String(n);
 }
 
-async function importExampleProgramFromBundledMarkdown() {
-  return importExampleProgramFromBundledMarkdownImpl({ silent: false });
+function formatTargetReps(targetReps) {
+  const arr = Array.isArray(targetReps) ? targetReps : [];
+  const pieces = arr.map(formatTarget);
+  if (!pieces.length || pieces.every(p => p === '—')) return '—';
+  if (pieces.every(p => p === pieces[0])) return pieces[0];
+  return pieces.join('/');
 }
 
-async function importExampleProgramFromBundledMarkdownImpl(options) {
-  const { silent } = options || {};
-  const md = await getBundledFileContent('program.md');
-  if (!md) {
-    if (!silent) {
-      alert('Could not load program.md. Make sure it exists in your GitHub Pages build and reload.');
-    }
-    return;
-  }
+function ensureDefaultProgramSeededIfEmpty() {
+  if (state.programs.length) return;
+  state.ui ||= {};
+  if (state.ui.defaultProgramSeeded) return;
 
-  const parsed = parseExampleProgramFromMarkdown(md);
-  if (!parsed.days.length) {
-    if (!silent) alert('No example days found in program.md.');
-    return;
-  }
-
-  const exerciseIdByName = new Map(state.exercises.map(ex => [ex.name.trim().toLowerCase(), ex.id]));
+  const exerciseIdByName = new Map(state.exercises.map(ex => [normalizeExerciseName(ex.name), ex.id]));
   const getOrCreateExerciseId = (name) => {
-    const key = String(name || '').trim().toLowerCase();
+    const key = normalizeExerciseName(name);
     if (!key) return null;
     const existingId = exerciseIdByName.get(key);
     if (existingId) return existingId;
@@ -400,45 +285,47 @@ async function importExampleProgramFromBundledMarkdownImpl(options) {
     return ex.id;
   };
 
-  const program = { id: uid(), name: parsed.programName, nextDayIndex: 0, days: [] };
-  parsed.days.forEach(d => {
-    const day = { id: uid(), name: d.name, items: [] };
-    d.items.forEach(item => {
-      const exerciseId = getOrCreateExerciseId(item.exerciseName);
-      if (!exerciseId) return;
-      day.items.push({
-        id: uid(),
-        exerciseId,
-        sets: item.sets,
-        targetReps: parseTargetReps(item.repsCsv, item.sets)
-      });
+  const addItem = (day, exerciseName, sets, target) => {
+    const exerciseId = getOrCreateExerciseId(exerciseName);
+    if (!exerciseId) return;
+    const setCount = Math.max(1, Number(sets) || 1);
+    const t = Number.isFinite(Number(target)) ? Number(target) : 0;
+    day.items.push({
+      id: uid(),
+      exerciseId,
+      sets: setCount,
+      targetReps: Array(setCount).fill(t)
     });
-    program.days.push(day);
-  });
+  };
 
+  const program = { id: uid(), name: 'myprogram', nextDayIndex: 0, days: [] };
+
+  const day1 = { id: uid(), name: 'Day 1 — chest and bi', items: [] };
+  addItem(day1, 'Bench Press', 2, 8);
+  addItem(day1, 'Barbell Curl', 2, 8);
+  addItem(day1, 'Incline Bench Press', 2, 8);
+  addItem(day1, 'Bicep Curl', 2, 8);
+  addItem(day1, 'Lateral Raise', 2, 10);
+
+  const day2 = { id: uid(), name: 'Day 2 — back and tri', items: [] };
+  addItem(day2, 'Lat Pulldown', 2, 8);
+  addItem(day2, 'Tricep Extension', 3, 8);
+  addItem(day2, 'Barbell Row', 2, 8);
+  addItem(day2, 'Barbell Skullcrushers', 3, 8);
+  addItem(day2, 'Lateral Raise', 2, 10);
+
+  const day3 = { id: uid(), name: 'Day 3 — Legs', items: [] };
+  addItem(day3, 'Squat', 3, 5);
+  addItem(day3, 'Romanian Deadlift', 3, 8);
+  addItem(day3, 'Leg Press', 3, 10);
+  addItem(day3, 'Leg Raise', 3, 0);
+  addItem(day3, 'Machine Ab Crunches', 3, 0);
+
+  program.days.push(day1, day2, day3);
   state.programs.push(program);
   state.ui.defaultProgramId = program.id;
+  state.ui.defaultProgramSeeded = true;
   saveState();
-
-  selectedProgramId = program.id;
-  selectedDayId = program.days[0]?.id || null;
-  showScreen('programDetail');
-  render();
-}
-
-async function autoImportExampleProgramIfEmpty() {
-  if (state.programs.length) return;
-  state.ui ||= {};
-  if (state.ui.exampleProgramImported) return;
-
-  try {
-    await importExampleProgramFromBundledMarkdownImpl({ silent: true });
-    if (!state.programs.length) return;
-    state.ui.exampleProgramImported = true;
-    saveState();
-  } catch (e) {
-    console.warn('Auto-import example program skipped:', e);
-  }
 }
 
 function getDefaultProgramId() {
@@ -491,25 +378,8 @@ function renderPrograms() {
     const li = document.createElement('li');
     const left = document.createElement('div');
     left.className = 'muted';
-    left.textContent = 'Create your first program, or load the built-in example.';
-
-    const actions = document.createElement('div');
-    actions.className = 'row';
-    const loadExample = document.createElement('button');
-    loadExample.className = 'btn ghost';
-    loadExample.type = 'button';
-    loadExample.textContent = 'Load Example';
-    loadExample.onclick = async () => {
-      try {
-        await importExampleProgramFromBundledMarkdown();
-      } catch (e) {
-        console.error('Failed to load example program', e);
-        alert('Failed to load the example program.');
-      }
-    };
-    actions.append(loadExample);
-
-    li.append(left, actions);
+    left.textContent = 'Create your first program.';
+    li.append(left);
     programList.appendChild(li);
     return;
   }
@@ -629,7 +499,7 @@ function renderDayEditor() {
     name.textContent = findExercise(item.exerciseId)?.name || 'Unknown Exercise';
     const meta = document.createElement('span');
     meta.className = 'muted';
-    meta.textContent = `${item.sets} sets • target ${item.targetReps.join('/')}`;
+    meta.textContent = `${item.sets} sets • target ${formatTargetReps(item.targetReps)}`;
     left.append(name, meta);
 
     const actions = document.createElement('div');
@@ -1429,7 +1299,7 @@ function renderSetsGrid() {
     const label = document.createElement('div');
     label.className = 'set-label';
     const target = current.targetReps[i] ?? 0;
-    label.textContent = `Set ${i + 1} · t${target}`;
+    label.textContent = `Set ${i + 1} · t${formatTarget(target)}`;
 
     const repsInput = document.createElement('input');
     repsInput.type = 'number';
@@ -1504,8 +1374,7 @@ if ('serviceWorker' in navigator) {
 
 // ---------- Boot ----------
 (async function boot() {
+  ensureDefaultProgramSeededIfEmpty();
   showScreen('programs');
   render();
-  await seedProgramMdIntoIndexedDb();
-  await autoImportExampleProgramIfEmpty();
 })();

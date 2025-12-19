@@ -1,0 +1,1 @@
+- DO NOT update the CACHE_NAME variable which stores the user's programs, exercises, sessions and history UNLESS the update modifies the type signature of any of the former. Visual changes should NOT reset the database.
