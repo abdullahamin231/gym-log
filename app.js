@@ -81,6 +81,8 @@ const setProgressEl = document.getElementById('setProgress');
 const prevExerciseBtn = document.getElementById('prevExerciseBtn');
 const nextExerciseBtn = document.getElementById('nextExerciseBtn');
 const setsGrid = document.getElementById('setsGrid');
+const addSetBtn = document.getElementById('addSetBtn');
+const removeSetBtn = document.getElementById('removeSetBtn');
 
 const historyList = document.getElementById('historyList');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
@@ -92,6 +94,41 @@ const importBtn = document.getElementById('importBtn');
 const importFile = document.getElementById('importFile');
 
 let deferredPrompt = null;
+
+function normalizeExerciseName(name) {
+  return String(name || '').trim().toLowerCase();
+}
+
+function getLatestExerciseFromHistory(exerciseName) {
+  const target = normalizeExerciseName(exerciseName);
+  if (!target) return null;
+
+  let best = null;
+  for (const entry of state.history || []) {
+    const performedAt = entry?.performedAt;
+    const exercises = entry?.exercises;
+    if (!performedAt || !Array.isArray(exercises)) continue;
+    const match = exercises.find(ex => normalizeExerciseName(ex?.name) === target);
+    if (!match || !Array.isArray(match.sets)) continue;
+    if (!best || String(performedAt) > String(best.performedAt)) {
+      best = {
+        performedAt: String(performedAt),
+        sets: match.sets.map(s => ({
+          reps: s?.reps ?? null,
+          weight: s?.weight ?? null
+        }))
+      };
+    }
+  }
+  return best;
+}
+
+function ensureTargetRepsLength(targetReps, sets) {
+  const next = Array.isArray(targetReps) ? targetReps.slice(0, sets) : [];
+  const last = next.length ? next[next.length - 1] : 0;
+  while (next.length < sets) next.push(last);
+  return next;
+}
 
 // ---------- IndexedDB (for app-bundled docs / future growth) ----------
 function openDb() {
@@ -762,8 +799,18 @@ function renderHistory() {
     .sort((a, b) => b.performedAt.localeCompare(a.performedAt))
     .forEach(entry => {
       const node = template.content.firstElementChild.cloneNode(true);
+      node.dataset.historyId = entry.id;
       node.querySelector('.history-meta').textContent =
         `${entry.programName} • ${entry.dayName} • ${new Date(entry.performedAt).toLocaleString()}`;
+      const deleteBtn = node.querySelector('[data-action="delete-history"]');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+          if (!confirm('Remove this session from history?')) return;
+          state.history = state.history.filter(h => h.id !== entry.id);
+          saveState();
+          renderHistory();
+        });
+      }
       const exContainer = node.querySelector('.history-exercises');
       entry.exercises.forEach(ex => {
         const line = document.createElement('div');
@@ -782,6 +829,7 @@ function renderHistory() {
 function renderHistoryChart() {
   if (!historyExerciseSelect || !historyChart || !historyChartEmpty) return;
 
+  const previousSelection = historyExerciseSelect.value;
   const names = new Set();
   state.history.forEach(entry => {
     (entry.exercises || []).forEach(ex => {
@@ -805,8 +853,9 @@ function renderHistoryChart() {
     historyExerciseSelect.appendChild(opt);
   });
 
-  if (!historyExerciseSelect.value) historyExerciseSelect.value = options[0];
-  const series = buildExerciseWeightSeries(historyExerciseSelect.value);
+  const nextSelection = options.includes(previousSelection) ? previousSelection : options[0];
+  historyExerciseSelect.value = nextSelection;
+  const series = buildExerciseWeightSeries(nextSelection);
   if (!series.length) {
     historyChartEmpty.textContent = 'No weight entries found for this exercise yet.';
   } else {
@@ -1228,7 +1277,18 @@ sessionSetupForm.addEventListener('submit', e => {
 
   const exercises = day.items.map(item => {
     const name = findExercise(item.exerciseId)?.name || 'Unknown Exercise';
-    return { name, sets: item.sets, targetReps: item.targetReps };
+    return { name, sets: item.sets, targetReps: Array.isArray(item.targetReps) ? item.targetReps.slice() : [] };
+  });
+
+  const previousByName = {};
+  exercises.forEach(ex => {
+    const prev = getLatestExerciseFromHistory(ex.name);
+    if (!prev) return;
+    previousByName[normalizeExerciseName(ex.name)] = prev;
+    if (prev.sets.length > 0) {
+      ex.sets = prev.sets.length;
+      ex.targetReps = ensureTargetRepsLength(ex.targetReps, ex.sets);
+    }
   });
 
   session = {
@@ -1237,6 +1297,7 @@ sessionSetupForm.addEventListener('submit', e => {
     dayIndex,
     exerciseIndex: 0,
     exercises,
+    previousByName,
     log: exercises.map(ex => ({
       name: ex.name,
       targetReps: ex.targetReps,
@@ -1259,6 +1320,29 @@ function cycleExercise(delta) {
 
 prevExerciseBtn?.addEventListener('click', () => cycleExercise(-1));
 nextExerciseBtn?.addEventListener('click', () => cycleExercise(1));
+
+function changeCurrentExerciseSets(delta) {
+  if (!session) return;
+  const current = session.exercises[session.exerciseIndex];
+  const logEntry = session.log[session.exerciseIndex];
+  if (!current || !logEntry) return;
+
+  const nextSets = Math.max(1, (current.sets || 1) + delta);
+  if (nextSets === current.sets) return;
+
+  current.sets = nextSets;
+  current.targetReps = ensureTargetRepsLength(current.targetReps, nextSets);
+  logEntry.targetReps = current.targetReps;
+
+  if (!Array.isArray(logEntry.sets)) logEntry.sets = [];
+  while (logEntry.sets.length < nextSets) logEntry.sets.push({ reps: null, weight: null });
+  if (logEntry.sets.length > nextSets) logEntry.sets = logEntry.sets.slice(0, nextSets);
+
+  updateSessionUI();
+}
+
+addSetBtn?.addEventListener('click', () => changeCurrentExerciseSets(1));
+removeSetBtn?.addEventListener('click', () => changeCurrentExerciseSets(-1));
 
 window.addEventListener('keydown', e => {
   if (!session) return;
@@ -1318,6 +1402,7 @@ function updateSessionUI() {
   const current = session.exercises[session.exerciseIndex];
   currentExerciseEl.textContent = current.name;
   setProgressEl.textContent = `Exercise ${session.exerciseIndex + 1}/${session.exercises.length} • ${current.sets} sets`;
+  if (removeSetBtn) removeSetBtn.disabled = (current.sets || 1) <= 1;
 
   const program = findProgram(session.programId);
   const day = findDay(session.programId, session.dayId);
@@ -1330,6 +1415,7 @@ function renderSetsGrid() {
   if (!session || !setsGrid) return;
   const current = session.exercises[session.exerciseIndex];
   const logEntry = session.log[session.exerciseIndex];
+  const prev = session.previousByName?.[normalizeExerciseName(current?.name)];
   setsGrid.innerHTML = '';
 
   if (!Array.isArray(logEntry.sets)) logEntry.sets = [];
@@ -1369,6 +1455,20 @@ function renderSetsGrid() {
     });
 
     row.append(label, repsInput, weightInput);
+
+    if (prev?.sets?.length) {
+      const prevSet = prev.sets[i];
+      const prevLine = document.createElement('div');
+      prevLine.className = 'set-prev';
+      if (!prevSet) {
+        prevLine.textContent = 'Last: —';
+      } else {
+        const reps = prevSet.reps ?? '—';
+        const weight = prevSet.weight ?? null;
+        prevLine.textContent = `Last: ${reps}${weight != null ? ` @ ${weight}` : ''}`;
+      }
+      row.appendChild(prevLine);
+    }
     setsGrid.appendChild(row);
   }
 }

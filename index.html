@@ -149,6 +149,10 @@
             </div>
             <div id="currentExercise"></div>
             <div id="setProgress" class="muted"></div>
+            <div class="row">
+              <button id="removeSetBtn" class="btn ghost" type="button">− Set</button>
+              <button id="addSetBtn" class="btn ghost" type="button">+ Set</button>
+            </div>
           </div>
           <div id="setsGrid" class="sets-grid" aria-label="Sets grid"></div>
         </div>
@@ -186,7 +190,10 @@
 
   <template id="historyTemplate">
     <li class="history-item">
-      <div class="history-meta"></div>
+      <div class="history-head">
+        <div class="history-meta"></div>
+        <button class="btn ghost danger" type="button" data-action="delete-history">Remove</button>
+      </div>
       <div class="history-exercises"></div>
     </li>
   </template>

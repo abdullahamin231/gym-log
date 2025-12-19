@@ -242,6 +242,14 @@ input:focus, select:focus {
   align-items: flex-start;
 }
 
+.history-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .history-meta {
   font-weight: 600;
 }
@@ -325,6 +333,12 @@ input:focus, select:focus {
 
 .set-row input {
   width: 100%;
+}
+
+.set-prev {
+  grid-column: 2 / -1;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .toggle {
