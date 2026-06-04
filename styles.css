@@ -48,7 +48,7 @@ h1, h2, h3, h4 { margin: 0; font-family: var(--font-display); font-weight: 400; 
 h2 { font-size: 28px; line-height: 1; }
 h3 { font-size: 22px; line-height: 1; }
 
-input, select, button, textarea {
+input, select, button {
   min-height: 42px;
   border: 1px solid var(--line);
   background: var(--input-bg);
@@ -115,22 +115,9 @@ label {
   background: transparent;
 }
 .btn.danger:hover { background: rgba(217,56,56,0.1); }
-
 .btn-block { width: 100%; justify-content: center; }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-.btn-link {
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  font-family: var(--font-body);
-  font-size: 12px;
-  text-transform: none;
-  letter-spacing: 0;
-  min-height: auto;
-  padding: 8px 0;
-}
-.btn-link:hover { color: var(--text); }
 
 /* ---- Layout ---- */
 .app { padding: 0 0 calc(8px + env(safe-area-inset-bottom)); }
@@ -173,7 +160,7 @@ label {
   top: calc(var(--header-h) + env(safe-area-inset-top));
   z-index: 6;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 0;
   margin-top: 0;
   background: rgba(10,10,10,0.88);
@@ -216,59 +203,16 @@ label {
   padding-bottom: 10px;
   border-bottom: 1px solid var(--line);
 }
-.divider { height: 1px; background: var(--line); }
 
 /* ---- Utilities ---- */
 .muted { color: var(--muted); font-size: 12px; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.tag {
-  display: inline-flex;
-  align-items: center;
-  min-height: 22px;
-  border: 1px solid var(--line);
-  padding: 2px 8px;
-  font-family: var(--font-body);
-  font-size: 10px;
-  color: var(--muted);
-  white-space: nowrap;
-}
 .label {
   color: var(--muted);
   font-family: var(--font-display);
   font-size: 13px;
   letter-spacing: 0.06em;
 }
-.dot { color: var(--muted); }
-
-/* ---- Forms ---- */
-.inline-form { display: flex; gap: 8px; align-items: stretch; }
-.stacked { display: flex; flex-direction: column; gap: 10px; }
-.split { display: flex; gap: 10px; flex-wrap: wrap; }
-.split > label { flex: 1 1 140px; }
-.toggle { flex-direction: row; align-items: center; gap: 10px; user-select: none; cursor: pointer; }
-.toggle input { width: 18px; height: 18px; min-height: 18px; cursor: pointer; }
-
-/* ---- Lists ---- */
-.list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 0;
-  margin: 0;
-}
-.list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px 14px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-}
-.list li > .row:first-child { min-width: 0; flex-wrap: wrap; }
-.list .btn { min-height: 34px; padding: 4px 10px; font-size: 13px; }
 
 /* ---- Program Sheet ---- */
 .program-sheet {
@@ -324,30 +268,37 @@ label {
 .session-preview-header {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding-bottom: 8px;
+  gap: 2px;
+  padding-bottom: 10px;
   border-bottom: 2px solid var(--line-strong);
 }
 .session-preview-label {
   font-family: var(--font-display);
-  font-size: 14px;
-  letter-spacing: 0.08em;
+  font-size: 13px;
+  letter-spacing: 0.1em;
   color: var(--muted);
+  margin-bottom: 6px;
+}
+.session-preview-program {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 .session-preview-day {
   font-family: var(--font-display);
-  font-size: clamp(36px, 10vw, 56px);
+  font-size: clamp(40px, 12vw, 64px);
   line-height: 1;
   letter-spacing: 0.02em;
+  margin: 0;
 }
-.session-preview-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.session-preview-count {
   font-size: 12px;
   color: var(--muted);
+  margin-top: 2px;
 }
-.session-preview-meta span:first-child { font-family: var(--font-body); font-weight: 500; }
 .session-preview-list {
   list-style: none;
   display: flex;
@@ -382,11 +333,24 @@ label {
   color: var(--muted);
   white-space: nowrap;
 }
-.session-preview-actions {
+
+.session-preview-daypicker {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-top: 4px;
+  gap: 4px;
+}
+.session-preview-daypicker label {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.session-preview-daypicker select {
+  width: 100%;
+  min-height: 44px;
+  font-family: var(--font-body);
+  font-size: 14px;
 }
 
 /* ---- Active Session ---- */
@@ -409,7 +373,6 @@ label {
   padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
   gap: 18px;
 }
-.session-active #sessionSetupCard { display: none; }
 .session-active #sessionPreview { display: none; }
 .session-active #sessionRunCard {
   min-height: calc(100dvh - (24px + env(safe-area-inset-top) + env(safe-area-inset-bottom)));
@@ -500,14 +463,6 @@ label {
   padding-top: 2px;
 }
 
-/* ---- Day Editor ---- */
-.day-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-top: 4px;
-}
-
 /* ---- History ---- */
 .history { gap: 10px; }
 .history-item {
@@ -546,7 +501,6 @@ label {
 @media (max-width: 520px) {
   .app-header, .tabbar, .app-main { width: calc(100vw - 18px); }
   .app-title { flex-direction: column; align-items: flex-start; gap: 1px; }
-  .inline-form, .history-head { flex-direction: column; align-items: stretch; }
   .set-row { grid-template-columns: 68px minmax(0, 1fr) minmax(0, 1fr); }
   .program-block { grid-template-columns: 1fr; }
   .session-preview-ex-name { font-size: 17px; }

@@ -22,129 +22,37 @@
   </header>
 
   <nav class="tabbar" aria-label="Primary navigation">
-    <button class="tab" data-nav="programs" type="button">Programs</button>
-    <button class="tab" data-nav="exercises" type="button">Exercises</button>
+    <button class="tab" data-nav="programs" type="button">Program</button>
     <button class="tab active" data-nav="session" type="button">Session</button>
     <button class="tab" data-nav="history" type="button">History</button>
   </nav>
 
   <main class="app-main">
-    <!-- Programs -->
+    <!-- Programs (read-only reference) -->
     <section class="screen hidden" id="screen-programs" data-screen="programs">
       <div class="card">
         <div class="section-head">
-          <h2>Programs</h2>
+          <h2>Program</h2>
         </div>
-        <div id="hardcodedProgramSheet" class="program-sheet" aria-label="Hardcoded program"></div>
-        <form id="programForm" class="inline-form">
-          <input name="programName" type="text" placeholder="New program" required autocomplete="off">
-          <button class="btn" type="submit">Add</button>
-        </form>
-        <ul id="programList" class="list"></ul>
-      </div>
-    </section>
-
-    <!-- Program detail -->
-    <section class="screen hidden" id="screen-program-detail" data-screen="programDetail">
-      <div class="card">
-        <div class="section-head">
-          <button id="backToProgramsBtn" class="btn ghost" type="button">Back</button>
-          <h2 id="programDetailTitle">Program</h2>
-          <div class="row">
-            <button id="renameProgramBtn" class="btn ghost" type="button">Rename</button>
-            <button id="deleteProgramBtn" class="btn ghost danger" type="button">Delete</button>
-          </div>
-        </div>
-        <div class="divider"></div>
-        <div class="section-head">
-          <h3>Days</h3>
-        </div>
-        <form id="dayForm" class="inline-form">
-          <input name="dayName" type="text" placeholder="Add day (e.g. Push)" required autocomplete="off">
-          <button class="btn" type="submit">Add</button>
-        </form>
-        <ul id="dayList" class="list"></ul>
-        <div class="divider"></div>
-        <div id="dayEditor" class="day-editor hidden">
-          <div class="section-head">
-            <h3 id="dayEditorTitle">Day</h3>
-            <div class="row">
-              <button id="renameDayBtn" class="btn ghost" type="button">Rename</button>
-              <button id="deleteDayBtn" class="btn ghost danger" type="button">Delete</button>
-            </div>
-          </div>
-          <form id="dayItemForm" class="stacked">
-            <label>
-              Exercise
-              <select id="dayItemExerciseSelect" required></select>
-            </label>
-            <div class="split">
-              <label>Sets <input name="sets" type="number" min="1" value="3" required></label>
-              <label>Target reps <input name="target" type="text" placeholder="8 or 8,8,6" required></label>
-            </div>
-            <button class="btn" type="submit">Add To Day</button>
-            <div class="muted">Manage exercises in the Exercises tab.</div>
-          </form>
-          <ul id="dayItemList" class="list"></ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- Exercises library -->
-    <section class="screen hidden" id="screen-exercises" data-screen="exercises">
-      <div class="card">
-        <div class="section-head">
-          <h2>Exercises</h2>
-        </div>
-        <form id="exerciseForm" class="inline-form">
-          <input name="exerciseName" type="text" placeholder="New exercise" required autocomplete="off">
-          <button class="btn" type="submit">Add</button>
-        </form>
-        <ul id="exerciseList" class="list"></ul>
+        <div id="hardcodedProgramSheet" class="program-sheet" aria-label="Program reference"></div>
       </div>
     </section>
 
     <!-- Session (HOME) -->
     <section class="screen" id="screen-session" data-screen="session">
-      <!-- Today's workout preview -->
       <div id="sessionPreview" class="session-preview">
         <div class="session-preview-header">
           <span class="session-preview-label">Today</span>
+          <span id="sessionPreviewProgram" class="session-preview-program"></span>
           <h2 id="sessionPreviewDay" class="session-preview-day">—</h2>
-          <div class="session-preview-meta">
-            <span id="sessionPreviewProgram"></span>
-            <span class="dot">&#183;</span>
-            <span id="sessionPreviewExerciseCount" class="muted"></span>
-          </div>
+          <span id="sessionPreviewExerciseCount" class="session-preview-count"></span>
         </div>
         <ul id="sessionPreviewExercises" class="session-preview-list"></ul>
-        <div class="session-preview-actions">
-          <button id="sessionPreviewStart" class="btn btn-primary btn-block" type="button">Start Session</button>
-          <button id="sessionPreviewPick" class="btn btn-link btn-block" type="button">Choose a different workout</button>
+        <div class="session-preview-daypicker">
+          <label for="sessionDaySelect">Switch day</label>
+          <select id="sessionDaySelect"></select>
         </div>
-      </div>
-
-      <!-- Setup form (collapsible) -->
-      <div class="card hidden" id="sessionSetupCard">
-        <div class="section-head">
-          <h2>Start Session</h2>
-        </div>
-        <form id="sessionSetupForm" class="stacked">
-          <label>
-            Program
-            <select id="sessionProgramSelect" required></select>
-          </label>
-          <label class="toggle">
-            <input id="pickDayToggle" type="checkbox">
-            <span>Pick a specific day</span>
-          </label>
-          <label id="sessionDayLabel" class="hidden">
-            Day
-            <select id="sessionDaySelect"></select>
-          </label>
-          <div id="nextDayHint" class="muted"></div>
-          <button id="startSessionBtn" class="btn" type="submit">Start</button>
-        </form>
+        <button id="sessionStartBtn" class="btn btn-primary btn-block" type="button">Start Session</button>
       </div>
 
       <!-- Active session -->

@@ -1,5 +1,5 @@
 // Data schema (normalized):
-// Exercise { id, name }                        // library, reusable across programs/days
+// Exercise { id, name }
 // Program  { id, name, nextDayIndex, days:[Day] }
 // Day      { id, name, items:[DayItem] }
 // DayItem  { id, exerciseId, sets, targetReps:number[] }
@@ -19,15 +19,9 @@ ensureUiDefaults();
 
 let currentScreen = 'session';
 let selectedProgramId = null;
-let selectedDayId = null; // for editing day in program detail
+let selectedDayId = null;
 
 let session = null;
-// session = {
-//   programId, dayId, dayIndex,
-//   exerciseIndex,
-//   exercises:[{ name, sets, targetReps:number[] }],
-//   log:[{ name, targetReps:number[], sets:[{reps:number|null, weight:number|null}] }]
-// }
 
 const hardcodedProgram = {
   name: 'program',
@@ -79,44 +73,15 @@ const hardcodedProgramSheet = document.getElementById('hardcodedProgramSheet');
 
 const screens = {
   programs: document.getElementById('screen-programs'),
-  programDetail: document.getElementById('screen-program-detail'),
-  exercises: document.getElementById('screen-exercises'),
   session: document.getElementById('screen-session'),
   history: document.getElementById('screen-history')
 };
 
 const tabButtons = Array.from(document.querySelectorAll('.tabbar .tab'));
 
-const programForm = document.getElementById('programForm');
-const programList = document.getElementById('programList');
-
-const backToProgramsBtn = document.getElementById('backToProgramsBtn');
-const programDetailTitle = document.getElementById('programDetailTitle');
-const renameProgramBtn = document.getElementById('renameProgramBtn');
-const deleteProgramBtn = document.getElementById('deleteProgramBtn');
-
-const dayForm = document.getElementById('dayForm');
-const dayList = document.getElementById('dayList');
-const dayEditor = document.getElementById('dayEditor');
-const dayEditorTitle = document.getElementById('dayEditorTitle');
-const renameDayBtn = document.getElementById('renameDayBtn');
-const deleteDayBtn = document.getElementById('deleteDayBtn');
-const dayItemForm = document.getElementById('dayItemForm');
-const dayItemExerciseSelect = document.getElementById('dayItemExerciseSelect');
-const dayItemList = document.getElementById('dayItemList');
-
-const exerciseForm = document.getElementById('exerciseForm');
-const exerciseList = document.getElementById('exerciseList');
-
-const sessionSetupForm = document.getElementById('sessionSetupForm');
-const sessionProgramSelect = document.getElementById('sessionProgramSelect');
-const pickDayToggle = document.getElementById('pickDayToggle');
-const sessionDayLabel = document.getElementById('sessionDayLabel');
 const sessionDaySelect = document.getElementById('sessionDaySelect');
-const nextDayHint = document.getElementById('nextDayHint');
-const sessionSetupCard = document.getElementById('sessionSetupCard');
-const sessionRunCard = document.getElementById('sessionRunCard');
 
+const sessionRunCard = document.getElementById('sessionRunCard');
 const completeSessionBtn = document.getElementById('completeSessionBtn');
 const sessionStatus = document.getElementById('sessionStatus');
 const sessionControls = document.getElementById('sessionControls');
@@ -128,6 +93,13 @@ const setsGrid = document.getElementById('setsGrid');
 const addSetBtn = document.getElementById('addSetBtn');
 const removeSetBtn = document.getElementById('removeSetBtn');
 
+const sessionPreview = document.getElementById('sessionPreview');
+const sessionPreviewDay = document.getElementById('sessionPreviewDay');
+const sessionPreviewProgram = document.getElementById('sessionPreviewProgram');
+const sessionPreviewExerciseCount = document.getElementById('sessionPreviewExerciseCount');
+const sessionPreviewExercises = document.getElementById('sessionPreviewExercises');
+const sessionStartBtn = document.getElementById('sessionStartBtn');
+
 const historyList = document.getElementById('historyList');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 const historyExerciseSelect = document.getElementById('historyExerciseSelect');
@@ -136,14 +108,6 @@ const historyChartEmpty = document.getElementById('historyChartEmpty');
 const exportBtn = document.getElementById('exportBtn');
 const importBtn = document.getElementById('importBtn');
 const importFile = document.getElementById('importFile');
-
-const sessionPreview = document.getElementById('sessionPreview');
-const sessionPreviewDay = document.getElementById('sessionPreviewDay');
-const sessionPreviewProgram = document.getElementById('sessionPreviewProgram');
-const sessionPreviewExerciseCount = document.getElementById('sessionPreviewExerciseCount');
-const sessionPreviewExercises = document.getElementById('sessionPreviewExercises');
-const sessionPreviewStart = document.getElementById('sessionPreviewStart');
-const sessionPreviewPick = document.getElementById('sessionPreviewPick');
 
 let deferredPrompt = null;
 
@@ -182,7 +146,7 @@ function ensureTargetRepsLength(targetReps, sets) {
   return next;
 }
 
-// ---------- IndexedDB (future growth / backups) ----------
+// ---------- IndexedDB ----------
 function openDb() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(dbName, dbVersion);
@@ -231,10 +195,8 @@ function ensureUiDefaults() {
 }
 
 function migrateIfNeeded(parsed) {
-  // v2 already has `exercises` and uses day.items
   if (Array.isArray(parsed.exercises) && Array.isArray(parsed.programs)) return { ...parsed, ui: parsed.ui || {} };
 
-  // v1 schema: programs[].days[].exercises[]
   const old = parsed;
   const next = { programs: [], exercises: [], history: Array.isArray(old.history) ? old.history : [], ui: {} };
   const byName = new Map();
@@ -308,14 +270,14 @@ function parseTargetReps(value, sets) {
 
 function formatTarget(value) {
   const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) return '—';
+  if (!Number.isFinite(n) || n <= 0) return '\u2014';
   return String(n);
 }
 
 function formatTargetReps(targetReps) {
   const arr = Array.isArray(targetReps) ? targetReps : [];
   const pieces = arr.map(formatTarget);
-  if (!pieces.length || pieces.every(p => p === '—')) return '—';
+  if (!pieces.length || pieces.every(p => p === '\u2014')) return '\u2014';
   if (pieces.every(p => p === pieces[0])) return pieces[0];
   return pieces.join('/');
 }
@@ -384,6 +346,11 @@ function getDefaultDayForProgram(program) {
   return { day: program.days[idx], index: idx };
 }
 
+function getDefaultProgram() {
+  const id = getDefaultProgramId();
+  return id ? findProgram(id) : state.programs[0] || null;
+}
+
 // ---------- Navigation ----------
 function setHeaderSubtitle(text) {
   headerSubtitle.textContent = text;
@@ -396,13 +363,11 @@ function showScreen(screenName) {
     el.classList.toggle('hidden', name !== screenName);
   });
 
-  const primary = ['programs', 'exercises', 'session', 'history'];
+  const primary = ['programs', 'session', 'history'];
   const activeTab = primary.includes(screenName) ? screenName : 'programs';
   tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.nav === activeTab));
 
-  if (screenName === 'programs') setHeaderSubtitle('Programs');
-  if (screenName === 'programDetail') setHeaderSubtitle('Programs • Days');
-  if (screenName === 'exercises') setHeaderSubtitle('Exercises');
+  if (screenName === 'programs') setHeaderSubtitle('Program');
   if (screenName === 'session') setHeaderSubtitle(session ? 'Active' : 'Today');
   if (screenName === 'history') setHeaderSubtitle('History');
 }
@@ -464,278 +429,51 @@ function renderHardcodedProgramSheet() {
 
 function renderPrograms() {
   renderHardcodedProgramSheet();
-  programList.innerHTML = '';
-  if (!state.programs.length) {
-    const li = document.createElement('li');
-    const left = document.createElement('div');
-    left.className = 'muted';
-    left.textContent = 'Create your first program.';
-    li.append(left);
-    programList.appendChild(li);
-    return;
-  }
-
-  state.programs.forEach(program => {
-    const li = document.createElement('li');
-    const left = document.createElement('div');
-    left.className = 'row';
-    const name = document.createElement('strong');
-    name.textContent = program.name;
-    const count = document.createElement('span');
-    count.className = 'tag';
-    count.textContent = `${program.days.length} days`;
-    left.append(name, count);
-
-    const actions = document.createElement('div');
-    actions.className = 'row';
-    const open = document.createElement('button');
-    open.className = 'btn ghost';
-    open.type = 'button';
-    open.textContent = 'Open';
-    open.onclick = () => {
-      selectedProgramId = program.id;
-      selectedDayId = null;
-      showScreen('programDetail');
-      render();
-    };
-    actions.append(open);
-    li.append(left, actions);
-    programList.appendChild(li);
-  });
-}
-
-function renderProgramDetail() {
-  const program = findProgram(selectedProgramId);
-  if (!program) {
-  showScreen('session');
-    return;
-  }
-
-  programDetailTitle.textContent = program.name;
-
-  dayList.innerHTML = '';
-  if (!program.days.length) {
-    dayList.innerHTML = '<li class="muted">Add a day, then build it using your exercise library.</li>';
-  } else {
-    program.days.forEach(day => {
-      const li = document.createElement('li');
-      const left = document.createElement('div');
-      left.className = 'row';
-      const name = document.createElement('strong');
-      name.textContent = day.name;
-      const count = document.createElement('span');
-      count.className = 'tag';
-      count.textContent = `${day.items.length} ex`;
-      left.append(name, count);
-
-      const actions = document.createElement('div');
-      actions.className = 'row';
-      const open = document.createElement('button');
-      open.className = 'btn ghost';
-      open.type = 'button';
-      open.textContent = selectedDayId === day.id ? 'Editing' : 'Edit';
-      open.onclick = () => {
-        selectedDayId = day.id;
-        renderProgramDetail();
-      };
-      actions.append(open);
-      li.append(left, actions);
-      dayList.appendChild(li);
-    });
-  }
-
-  renderDayEditor();
-}
-
-function renderDayEditor() {
-  const program = findProgram(selectedProgramId);
-  const day = program ? findDay(program.id, selectedDayId) : null;
-  dayEditor.classList.toggle('hidden', !day);
-  if (!day) return;
-
-  dayEditorTitle.textContent = day.name;
-
-  // Exercise select
-  dayItemExerciseSelect.innerHTML = '';
-  const exercises = state.exercises.slice().sort((a, b) => a.name.localeCompare(b.name));
-  if (!exercises.length) {
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = 'No exercises yet (add in Exercises tab)';
-    dayItemExerciseSelect.appendChild(opt);
-    dayItemExerciseSelect.disabled = true;
-  } else {
-    dayItemExerciseSelect.disabled = false;
-    exercises.forEach(ex => {
-      const opt = document.createElement('option');
-      opt.value = ex.id;
-      opt.textContent = ex.name;
-      dayItemExerciseSelect.appendChild(opt);
-    });
-  }
-
-  // Day items list
-  dayItemList.innerHTML = '';
-  if (!day.items.length) {
-    dayItemList.innerHTML = '<li class="muted">Add exercises to this day.</li>';
-    return;
-  }
-
-  day.items.forEach((item, idx) => {
-    const li = document.createElement('li');
-
-    const left = document.createElement('div');
-    left.className = 'row';
-    const name = document.createElement('strong');
-    name.textContent = findExercise(item.exerciseId)?.name || 'Unknown Exercise';
-    const meta = document.createElement('span');
-    meta.className = 'muted';
-    meta.textContent = `${item.sets} sets • target ${formatTargetReps(item.targetReps)}`;
-    left.append(name, meta);
-
-    const actions = document.createElement('div');
-    actions.className = 'row';
-
-    const up = document.createElement('button');
-    up.className = 'btn ghost';
-    up.type = 'button';
-    up.textContent = '↑';
-    up.disabled = idx === 0;
-    up.onclick = () => {
-      [day.items[idx - 1], day.items[idx]] = [day.items[idx], day.items[idx - 1]];
-      saveState();
-      renderDayEditor();
-    };
-
-    const down = document.createElement('button');
-    down.className = 'btn ghost';
-    down.type = 'button';
-    down.textContent = '↓';
-    down.disabled = idx === day.items.length - 1;
-    down.onclick = () => {
-      [day.items[idx + 1], day.items[idx]] = [day.items[idx], day.items[idx + 1]];
-      saveState();
-      renderDayEditor();
-    };
-
-    const edit = document.createElement('button');
-    edit.className = 'btn ghost';
-    edit.type = 'button';
-    edit.textContent = 'Edit';
-    edit.onclick = () => {
-      const setsNext = parseInt(prompt('Sets', item.sets) ?? item.sets, 10);
-      const targetNext = prompt('Target reps (e.g. 8 or 8,8,6)', item.targetReps.join(',')) ?? item.targetReps.join(',');
-      item.sets = Number.isNaN(setsNext) || setsNext < 1 ? item.sets : setsNext;
-      item.targetReps = parseTargetReps(targetNext, item.sets);
-      saveState();
-      renderDayEditor();
-    };
-
-    const del = document.createElement('button');
-    del.className = 'btn ghost danger';
-    del.type = 'button';
-    del.textContent = 'Remove';
-    del.onclick = () => {
-      day.items = day.items.filter(i => i.id !== item.id);
-      saveState();
-      renderDayEditor();
-    };
-
-    actions.append(up, down, edit, del);
-    li.append(left, actions);
-    dayItemList.appendChild(li);
-  });
-}
-
-function renderExercises() {
-  exerciseList.innerHTML = '';
-  if (!state.exercises.length) {
-    exerciseList.innerHTML = '<li class="muted">Add exercises you use often. Then add them to days.</li>';
-    return;
-  }
-
-  state.exercises
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .forEach(ex => {
-      const li = document.createElement('li');
-      const name = document.createElement('strong');
-      name.textContent = ex.name;
-
-      const actions = document.createElement('div');
-      actions.className = 'row';
-
-      const rename = document.createElement('button');
-      rename.className = 'btn ghost';
-      rename.type = 'button';
-      rename.textContent = 'Rename';
-      rename.onclick = () => {
-        const next = prompt('Exercise name', ex.name);
-        if (!next) return;
-        ex.name = next.trim();
-        saveState();
-        render();
-      };
-
-      const del = document.createElement('button');
-      del.className = 'btn ghost danger';
-      del.type = 'button';
-      del.textContent = 'Delete';
-      del.onclick = () => deleteExercise(ex.id);
-
-      actions.append(rename, del);
-      li.append(name, actions);
-      exerciseList.appendChild(li);
-    });
 }
 
 function renderSessionSetup() {
-  sessionProgramSelect.innerHTML = '';
-  const programs = state.programs.slice().sort((a, b) => a.name.localeCompare(b.name));
-  if (!programs.length) {
+  const program = getDefaultProgram();
+  sessionDaySelect.innerHTML = '';
+
+  if (!program || !program.days.length) {
+    sessionDaySelect.disabled = true;
     const opt = document.createElement('option');
     opt.value = '';
-    opt.textContent = 'No programs (create one first)';
-    sessionProgramSelect.appendChild(opt);
-    sessionProgramSelect.disabled = true;
+    opt.textContent = program ? 'No days available' : 'No program';
+    sessionDaySelect.appendChild(opt);
+
+    sessionPreviewProgram.textContent = '';
+    sessionPreviewDay.textContent = 'No workout';
+    sessionPreviewExerciseCount.textContent = '';
+    sessionPreviewExercises.innerHTML = '<li class="muted" style="padding:14px 16px;list-style:none">Set up a program to get started.</li>';
     return;
   }
-  sessionProgramSelect.disabled = false;
-  programs.forEach(p => {
+
+  sessionDaySelect.disabled = false;
+  program.days.forEach(d => {
     const opt = document.createElement('option');
-    opt.value = p.id;
-    opt.textContent = p.name;
-    sessionProgramSelect.appendChild(opt);
+    opt.value = d.id;
+    opt.textContent = d.name;
+    sessionDaySelect.appendChild(opt);
   });
 
-  const defaultId = getDefaultProgramId();
-  sessionProgramSelect.value = defaultId || programs[0].id;
-  state.ui.defaultProgramId = sessionProgramSelect.value;
-  saveState();
+  const { day } = getDefaultDayForProgram(program);
+  if (day) sessionDaySelect.value = day.id;
 
-  renderSessionDays();
   renderSessionPreview();
 }
 
 function renderSessionPreview() {
-  const program = findProgram(sessionProgramSelect.value);
-  if (!program || !program.days.length || session) {
-    sessionPreview?.classList.add('hidden');
-    sessionSetupCard?.classList.remove('hidden');
-    return;
-  }
-  const { day } = getDefaultDayForProgram(program);
-  if (!day) {
-    sessionPreview?.classList.add('hidden');
-    sessionSetupCard?.classList.remove('hidden');
-    return;
-  }
+  const program = getDefaultProgram();
+  if (!program || !program.days.length) return;
 
-  sessionPreview?.classList.remove('hidden');
-  sessionSetupCard?.classList.add('hidden');
+  const dayId = sessionDaySelect.value;
+  if (!dayId) return;
+  const day = findDay(program.id, dayId);
+  if (!day) return;
 
-  sessionPreviewDay.textContent = day.name;
   sessionPreviewProgram.textContent = program.name;
+  sessionPreviewDay.textContent = day.name;
   sessionPreviewExerciseCount.textContent = `${day.items.length} exercise${day.items.length !== 1 ? 's' : ''}`;
 
   sessionPreviewExercises.innerHTML = '';
@@ -759,7 +497,7 @@ function renderHistory() {
   historyList.innerHTML = '';
   const template = document.getElementById('historyTemplate');
   if (!state.history.length) {
-    historyList.innerHTML = '<li class="muted">No sessions logged yet.</li>';
+    historyList.innerHTML = '<li class="muted" style="list-style:none">No sessions logged yet.</li>';
     renderHistoryChart();
     return;
   }
@@ -771,7 +509,7 @@ function renderHistory() {
       const node = template.content.firstElementChild.cloneNode(true);
       node.dataset.historyId = entry.id;
       node.querySelector('.history-meta').textContent =
-        `${entry.programName} • ${entry.dayName} • ${new Date(entry.performedAt).toLocaleString()}`;
+        `${entry.programName} \u2022 ${entry.dayName} \u2022 ${new Date(entry.performedAt).toLocaleString()}`;
       const deleteBtn = node.querySelector('[data-action="delete-history"]');
       if (deleteBtn) {
         deleteBtn.addEventListener('click', () => {
@@ -787,7 +525,7 @@ function renderHistory() {
         const sets = ex.sets
           .map((s, i) => `${i + 1}:${s.reps}${s.weight ? `@${s.weight}` : ''}${s.target ? `/${s.target}` : ''}`)
           .join('  ');
-        line.textContent = `${ex.name} — ${sets}`;
+        line.textContent = `${ex.name} \u2014 ${sets}`;
         exContainer.appendChild(line);
       });
       historyList.appendChild(node);
@@ -832,7 +570,7 @@ function renderHistoryChart() {
     const last = series[series.length - 1].y;
     const first = series[0].y;
     const delta = (last - first).toFixed(1).replace(/\.0$/, '');
-    historyChartEmpty.textContent = `First: ${first} • Latest: ${last} • Δ ${delta}`;
+    historyChartEmpty.textContent = `First: ${first} \u2022 Latest: ${last} \u2022 \u0394 ${delta}`;
   }
   drawLineChart(historyChart, series, { yLabel: 'Weight' });
 }
@@ -865,7 +603,7 @@ function drawLineChart(canvas, points, { yLabel } = {}) {
   if (canvas.height !== h) canvas.height = h;
 
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = '#141414';
   ctx.fillRect(0, 0, w, h);
 
   const padL = 46 * dpr;
@@ -875,7 +613,7 @@ function drawLineChart(canvas, points, { yLabel } = {}) {
   const plotW = w - padL - padR;
   const plotH = h - padT - padB;
 
-  ctx.strokeStyle = 'rgba(17,17,17,0.55)';
+  ctx.strokeStyle = 'rgba(239,237,232,0.3)';
   ctx.lineWidth = 1 * dpr;
   ctx.beginPath();
   ctx.moveTo(padL, padT);
@@ -883,12 +621,13 @@ function drawLineChart(canvas, points, { yLabel } = {}) {
   ctx.lineTo(padL + plotW, padT + plotH);
   ctx.stroke();
 
-  ctx.fillStyle = 'rgba(111,111,104,0.95)';
-  ctx.font = `${12 * dpr}px Avenir Next, Helvetica`;
+  ctx.fillStyle = 'rgba(107,106,99,0.95)';
+  ctx.font = `${12 * dpr}px DM Mono, monospace`;
+
   if (yLabel) ctx.fillText(yLabel, 10 * dpr, 14 * dpr);
 
   if (!points.length) {
-    ctx.fillStyle = 'rgba(111,111,104,0.75)';
+    ctx.fillStyle = 'rgba(107,106,99,0.75)';
     ctx.fillText('No data', padL + 10 * dpr, padT + plotH / 2);
     return;
   }
@@ -907,27 +646,21 @@ function drawLineChart(canvas, points, { yLabel } = {}) {
   const xToPx = (i) => padL + (points.length === 1 ? plotW / 2 : (i / (points.length - 1)) * plotW);
   const yToPx = (y) => padT + (1 - (y - minY) / (maxY - minY)) * plotH;
 
-  // Y ticks
   const ticks = 4;
-  ctx.fillStyle = 'rgba(111,111,104,0.9)';
+  ctx.fillStyle = 'rgba(107,106,99,0.9)';
   for (let i = 0; i <= ticks; i++) {
     const t = i / ticks;
     const yVal = minY + (1 - t) * (maxY - minY);
     const yPx = padT + t * plotH;
-    ctx.strokeStyle = 'rgba(216,216,210,0.9)';
+    ctx.strokeStyle = 'rgba(34,34,34,0.9)';
     ctx.beginPath();
     ctx.moveTo(padL, yPx);
     ctx.lineTo(padL + plotW, yPx);
     ctx.stroke();
-    ctx.fillText(
-      `${Math.round(yVal * 10) / 10}`,
-      6 * dpr,
-      yPx + 4 * dpr
-    );
+    ctx.fillText(`${Math.round(yVal * 10) / 10}`, 6 * dpr, yPx + 4 * dpr);
   }
 
-  // Line
-  ctx.strokeStyle = 'rgba(0,87,216,0.9)';
+  ctx.strokeStyle = 'rgba(217,56,56,0.9)';
   ctx.lineWidth = 2 * dpr;
   ctx.beginPath();
   points.forEach((p, i) => {
@@ -938,8 +671,7 @@ function drawLineChart(canvas, points, { yLabel } = {}) {
   });
   ctx.stroke();
 
-  // Points
-  ctx.fillStyle = 'rgba(0,87,216,1)';
+  ctx.fillStyle = 'rgba(217,56,56,1)';
   points.forEach((p, i) => {
     const x = xToPx(i);
     const y = yToPx(p.y);
@@ -948,10 +680,9 @@ function drawLineChart(canvas, points, { yLabel } = {}) {
     ctx.fill();
   });
 
-  // X labels (first/last)
   const firstDate = new Date(points[0].x);
   const lastDate = new Date(points[points.length - 1].x);
-  ctx.fillStyle = 'rgba(111,111,104,0.9)';
+  ctx.fillStyle = 'rgba(107,106,99,0.9)';
   ctx.fillText(firstDate.toLocaleDateString(), padL, padT + plotH + 18 * dpr);
   const lastLabel = lastDate.toLocaleDateString();
   const metrics = ctx.measureText(lastLabel);
@@ -1076,184 +807,26 @@ importFile?.addEventListener('change', async () => {
 
 function render() {
   if (currentScreen === 'programs') renderPrograms();
-  if (currentScreen === 'programDetail') renderProgramDetail();
-  if (currentScreen === 'exercises') renderExercises();
   if (currentScreen === 'session') renderSessionSetup();
   if (currentScreen === 'history') renderHistory();
   updateSessionUI();
 }
 
-// ---------- Programs ----------
-programForm.addEventListener('submit', e => {
-  e.preventDefault();
-  const name = programForm.programName.value.trim();
-  if (!name) return;
-  const program = { id: uid(), name, nextDayIndex: 0, days: [] };
-  state.programs.push(program);
-  state.ui.defaultProgramId = program.id;
-  programForm.reset();
-  saveState();
-  render();
+// ---------- Session ----------
+sessionDaySelect?.addEventListener('change', () => {
+  if (currentScreen !== 'session') return;
+  renderSessionPreview();
 });
 
-backToProgramsBtn.addEventListener('click', () => {
-  selectedProgramId = null;
-  selectedDayId = null;
-  showScreen('programs');
-  render();
-});
-
-renameProgramBtn.addEventListener('click', () => {
-  const program = findProgram(selectedProgramId);
-  if (!program) return;
-  const next = prompt('Program name', program.name);
-  if (!next) return;
-  program.name = next.trim();
-  saveState();
-  renderProgramDetail();
-});
-
-deleteProgramBtn.addEventListener('click', () => {
-  const program = findProgram(selectedProgramId);
-  if (!program) return;
-  if (!confirm('Delete this program? History entries remain unchanged.')) return;
-  state.programs = state.programs.filter(p => p.id !== program.id);
-  if (state.ui.defaultProgramId === program.id) state.ui.defaultProgramId = getDefaultProgramId();
-  selectedProgramId = null;
-  selectedDayId = null;
-  saveState();
-  showScreen('programs');
-  render();
-});
-
-// ---------- Days + Day builder ----------
-dayForm.addEventListener('submit', e => {
-  e.preventDefault();
-  const program = findProgram(selectedProgramId);
-  if (!program) return;
-  const name = dayForm.dayName.value.trim();
-  if (!name) return;
-  const day = { id: uid(), name, items: [] };
-  program.days.push(day);
-  selectedDayId = day.id;
-  dayForm.reset();
-  saveState();
-  renderProgramDetail();
-});
-
-renameDayBtn.addEventListener('click', () => {
-  const program = findProgram(selectedProgramId);
-  const day = program ? findDay(program.id, selectedDayId) : null;
-  if (!day) return;
-  const next = prompt('Day name', day.name);
-  if (!next) return;
-  day.name = next.trim();
-  saveState();
-  renderProgramDetail();
-});
-
-deleteDayBtn.addEventListener('click', () => {
-  const program = findProgram(selectedProgramId);
-  const day = program ? findDay(program.id, selectedDayId) : null;
-  if (!program || !day) return;
-  if (!confirm('Delete this day?')) return;
-  const idx = program.days.findIndex(d => d.id === day.id);
-  program.days = program.days.filter(d => d.id !== day.id);
-  if (program.nextDayIndex >= program.days.length) program.nextDayIndex = 0;
-  if (idx <= program.nextDayIndex && program.nextDayIndex > 0) program.nextDayIndex -= 1;
-  selectedDayId = null;
-  saveState();
-  renderProgramDetail();
-});
-
-dayItemForm.addEventListener('submit', e => {
-  e.preventDefault();
-  const program = findProgram(selectedProgramId);
-  const day = program ? findDay(program.id, selectedDayId) : null;
-  if (!day) return;
-  if (!state.exercises.length) return alert('Add exercises first (Exercises tab).');
-  const exerciseId = dayItemExerciseSelect.value;
-  const sets = parseInt(dayItemForm.sets.value, 10);
-  const target = dayItemForm.target.value;
-  if (!exerciseId || Number.isNaN(sets) || sets < 1) return;
-  day.items.push({
-    id: uid(),
-    exerciseId,
-    sets,
-    targetReps: parseTargetReps(target, sets)
-  });
-  dayItemForm.reset();
-  dayItemForm.sets.value = 3;
-  saveState();
-  renderDayEditor();
-});
-
-// ---------- Exercise library ----------
-exerciseForm.addEventListener('submit', e => {
-  e.preventDefault();
-  const name = exerciseForm.exerciseName.value.trim();
-  if (!name) return;
-  state.exercises.push({ id: uid(), name });
-  exerciseForm.reset();
-  saveState();
-  render();
-});
-
-function deleteExercise(exerciseId) {
-  const ex = findExercise(exerciseId);
-  if (!ex) return;
-  const used = state.programs.some(p => p.days.some(d => d.items.some(i => i.exerciseId === exerciseId)));
-  const msg = used
-    ? 'Delete this exercise? It will also be removed from any days that use it.'
-    : 'Delete this exercise?';
-  if (!confirm(msg)) return;
-  state.exercises = state.exercises.filter(e => e.id !== exerciseId);
-  state.programs.forEach(p => p.days.forEach(d => (d.items = d.items.filter(i => i.exerciseId !== exerciseId))));
-  saveState();
-  render();
-}
-
-// ---------- Session Flow ----------
-pickDayToggle.addEventListener('change', () => {
-  sessionDayLabel.classList.toggle('hidden', !pickDayToggle.checked);
-  renderSessionDays();
-});
-
-sessionPreviewStart?.addEventListener('click', () => {
+sessionStartBtn?.addEventListener('click', () => {
   if (session) return;
-  sessionSetupForm.requestSubmit();
-});
 
-sessionPreviewPick?.addEventListener('click', () => {
-  sessionPreview?.classList.add('hidden');
-  sessionSetupCard?.classList.remove('hidden');
-});
+  const program = getDefaultProgram();
+  if (!program || !program.days.length) return;
 
-sessionProgramSelect.addEventListener('change', () => {
-  state.ui.defaultProgramId = sessionProgramSelect.value;
-  saveState();
-  renderSessionDays();
-});
-
-sessionSetupForm.addEventListener('submit', e => {
-  e.preventDefault();
-  if (session) return alert('A session is already active.');
-  const program = findProgram(sessionProgramSelect.value);
-  if (!program) return alert('Select a program.');
-  if (!program.days.length) return alert('Add days to this program first.');
-
-  let day = null;
-  let dayIndex = -1;
-  if (pickDayToggle.checked) {
-    day = findDay(program.id, sessionDaySelect.value);
-    dayIndex = program.days.findIndex(d => d.id === day?.id);
-  } else {
-    const def = getDefaultDayForProgram(program);
-    day = def.day;
-    dayIndex = def.index;
-  }
-  if (!day) return alert('Select a day.');
-  if (!day.items.length) return alert('This day has no exercises.');
+  const day = findDay(program.id, sessionDaySelect.value);
+  if (!day || !day.items.length) return;
+  const dayIndex = program.days.findIndex(d => d.id === day.id);
 
   const exercises = day.items.map(item => {
     const name = findExercise(item.exerciseId)?.name || 'Unknown Exercise';
@@ -1285,9 +858,103 @@ sessionSetupForm.addEventListener('submit', e => {
     }))
   };
 
-  showScreen('session');
+  setHeaderSubtitle('Active');
   updateSessionUI();
 });
+
+function updateSessionUI() {
+  if (!session) {
+    document.body.classList.remove('session-active');
+    sessionRunCard?.classList.add('hidden');
+    sessionControls.classList.add('hidden');
+    sessionStatus.textContent = 'No active session.';
+    return;
+  }
+
+  document.body.classList.add('session-active');
+  sessionRunCard?.classList.remove('hidden');
+  sessionControls.classList.remove('hidden');
+  const current = session.exercises[session.exerciseIndex];
+  currentExerciseEl.textContent = current.name;
+  setProgressEl.textContent = `Exercise ${session.exerciseIndex + 1}/${session.exercises.length} \u2022 ${current.sets} sets`;
+  if (removeSetBtn) removeSetBtn.disabled = (current.sets || 1) <= 1;
+
+  const program = findProgram(session.programId);
+  const day = findDay(session.programId, session.dayId);
+  sessionStatus.textContent = `${program?.name || 'Program'} \u2022 ${day?.name || 'Day'} \u2014 Exercise ${session.exerciseIndex + 1}/${session.exercises.length}`;
+
+  renderSetsGrid();
+}
+
+function renderSetsGrid() {
+  if (!session || !setsGrid) return;
+  const current = session.exercises[session.exerciseIndex];
+  const logEntry = session.log[session.exerciseIndex];
+  const prev = session.previousByName?.[normalizeExerciseName(current?.name)];
+  setsGrid.innerHTML = '';
+
+  if (!Array.isArray(logEntry.sets)) logEntry.sets = [];
+  while (logEntry.sets.length < current.sets) logEntry.sets.push({ reps: null, weight: null });
+  if (logEntry.sets.length > current.sets) logEntry.sets = logEntry.sets.slice(0, current.sets);
+
+  for (let i = 0; i < current.sets; i++) {
+    const row = document.createElement('div');
+    row.className = 'set-row';
+
+    const label = document.createElement('div');
+    label.className = 'set-label';
+    const target = current.targetReps[i] ?? 0;
+    label.textContent = `Set ${i + 1} \u00b7 t${formatTarget(target)}`;
+
+    const repsInput = document.createElement('input');
+    repsInput.type = 'number';
+    repsInput.min = '0';
+    repsInput.inputMode = 'numeric';
+    repsInput.placeholder = 'Reps';
+    repsInput.value = logEntry.sets[i].reps ?? '';
+    repsInput.addEventListener('input', () => {
+      const raw = repsInput.value.trim();
+      logEntry.sets[i].reps = raw === '' ? null : parseInt(raw, 10);
+    });
+
+    const weightInput = document.createElement('input');
+    weightInput.type = 'number';
+    weightInput.min = '0';
+    weightInput.step = '0.1';
+    weightInput.inputMode = 'decimal';
+    weightInput.placeholder = 'Weight';
+    weightInput.value = logEntry.sets[i].weight ?? '';
+    weightInput.addEventListener('input', () => {
+      const raw = weightInput.value.trim();
+      logEntry.sets[i].weight = raw === '' ? null : parseFloat(raw);
+    });
+
+    row.append(label, weightInput, repsInput);
+
+    if (prev?.sets?.length) {
+      const prevSet = prev.sets[i];
+      const prevLine = document.createElement('div');
+      prevLine.className = 'set-prev';
+      if (!prevSet) {
+        prevLine.textContent = 'Last \u2014';
+      } else {
+        const reps = typeof prevSet.reps === 'number' ? prevSet.reps : null;
+        const weight = typeof prevSet.weight === 'number' ? prevSet.weight : null;
+        if (reps == null && weight == null) {
+          prevLine.textContent = 'Last \u2014';
+        } else if (reps != null && weight != null) {
+          prevLine.textContent = `Last ${weight}kg for ${reps}reps`;
+        } else if (weight != null) {
+          prevLine.textContent = `Last ${weight}kg for \u2014`;
+        } else {
+          prevLine.textContent = `Last \u2014 for ${reps}reps`;
+        }
+      }
+      row.appendChild(prevLine);
+    }
+    setsGrid.appendChild(row);
+  }
+}
 
 completeSessionBtn.addEventListener('click', () => completeSession(false));
 
@@ -1365,100 +1032,6 @@ function completeSession(force) {
   saveState();
   renderHistory();
   updateSessionUI();
-}
-
-function updateSessionUI() {
-  if (!session) {
-    document.body.classList.remove('session-active');
-    sessionRunCard?.classList.add('hidden');
-    sessionControls.classList.add('hidden');
-    sessionStatus.textContent = 'No active session. Start one above.';
-    return;
-  }
-
-  document.body.classList.add('session-active');
-  sessionRunCard?.classList.remove('hidden');
-  sessionControls.classList.remove('hidden');
-  const current = session.exercises[session.exerciseIndex];
-  currentExerciseEl.textContent = current.name;
-  setProgressEl.textContent = `Exercise ${session.exerciseIndex + 1}/${session.exercises.length} • ${current.sets} sets`;
-  if (removeSetBtn) removeSetBtn.disabled = (current.sets || 1) <= 1;
-
-  const program = findProgram(session.programId);
-  const day = findDay(session.programId, session.dayId);
-  sessionStatus.textContent = `${program?.name || 'Program'} • ${day?.name || 'Day'} — Exercise ${session.exerciseIndex + 1}/${session.exercises.length}`;
-
-  renderSetsGrid();
-}
-
-function renderSetsGrid() {
-  if (!session || !setsGrid) return;
-  const current = session.exercises[session.exerciseIndex];
-  const logEntry = session.log[session.exerciseIndex];
-  const prev = session.previousByName?.[normalizeExerciseName(current?.name)];
-  setsGrid.innerHTML = '';
-
-  if (!Array.isArray(logEntry.sets)) logEntry.sets = [];
-  while (logEntry.sets.length < current.sets) logEntry.sets.push({ reps: null, weight: null });
-  if (logEntry.sets.length > current.sets) logEntry.sets = logEntry.sets.slice(0, current.sets);
-
-  for (let i = 0; i < current.sets; i++) {
-    const row = document.createElement('div');
-    row.className = 'set-row';
-
-    const label = document.createElement('div');
-    label.className = 'set-label';
-    const target = current.targetReps[i] ?? 0;
-    label.textContent = `Set ${i + 1} · t${formatTarget(target)}`;
-
-    const repsInput = document.createElement('input');
-    repsInput.type = 'number';
-    repsInput.min = '0';
-    repsInput.inputMode = 'numeric';
-    repsInput.placeholder = 'Reps';
-    repsInput.value = logEntry.sets[i].reps ?? '';
-    repsInput.addEventListener('input', () => {
-      const raw = repsInput.value.trim();
-      logEntry.sets[i].reps = raw === '' ? null : parseInt(raw, 10);
-    });
-
-    const weightInput = document.createElement('input');
-    weightInput.type = 'number';
-    weightInput.min = '0';
-    weightInput.step = '0.1';
-    weightInput.inputMode = 'decimal';
-    weightInput.placeholder = 'Weight';
-    weightInput.value = logEntry.sets[i].weight ?? '';
-    weightInput.addEventListener('input', () => {
-      const raw = weightInput.value.trim();
-      logEntry.sets[i].weight = raw === '' ? null : parseFloat(raw);
-    });
-
-    row.append(label, weightInput, repsInput);
-
-    if (prev?.sets?.length) {
-      const prevSet = prev.sets[i];
-      const prevLine = document.createElement('div');
-      prevLine.className = 'set-prev';
-      if (!prevSet) {
-        prevLine.textContent = 'Last —';
-      } else {
-        const reps = typeof prevSet.reps === 'number' ? prevSet.reps : null;
-        const weight = typeof prevSet.weight === 'number' ? prevSet.weight : null;
-        if (reps == null && weight == null) {
-          prevLine.textContent = 'Last —';
-        } else if (reps != null && weight != null) {
-          prevLine.textContent = `Last ${weight}kg for ${reps}reps`;
-        } else if (weight != null) {
-          prevLine.textContent = `Last ${weight}kg for —`;
-        } else {
-          prevLine.textContent = `Last — for ${reps}reps`;
-        }
-      }
-      row.appendChild(prevLine);
-    }
-    setsGrid.appendChild(row);
-  }
 }
 
 // ---------- History ----------
