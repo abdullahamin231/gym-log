@@ -26,6 +26,7 @@
     <button class="tab active" data-nav="session" type="button">Session</button>
     <button class="tab" data-nav="history" type="button">History</button>
     <button class="tab" data-nav="track-weight" type="button">Weight</button>
+    <button class="tab" data-nav="calorie" type="button">Calorie</button>
   </nav>
 
   <main class="app-main">
@@ -123,7 +124,108 @@
         </div>
       </div>
     </section>
+
+    <!-- Calorie -->
+    <section class="screen hidden" id="screen-calorie" data-screen="calorie">
+      <div class="calorie-dashboard">
+        <div class="calorie-goals">
+          <div class="calorie-goal-card">
+            <span>Protein</span>
+            <label class="editable-goal">
+              <input type="number" id="proteinGoalInput" min="1" step="1" inputmode="numeric">
+              <span>g</span>
+            </label>
+            <div class="macro-progress" aria-label="Protein progress">
+              <div id="proteinProgressBar" class="macro-progress-fill"></div>
+            </div>
+            <strong id="proteinProgressText">0g / 150g</strong>
+          </div>
+          <div class="calorie-goal-card">
+            <span>Calories</span>
+            <label class="editable-goal">
+              <input type="number" id="calorieGoalInput" min="1" step="1" inputmode="numeric">
+              <span>cal</span>
+            </label>
+            <div class="macro-progress" aria-label="Calorie progress">
+              <div id="calorieProgressBar" class="macro-progress-fill"></div>
+            </div>
+            <strong id="calorieProgressText">0 / 1600</strong>
+          </div>
+        </div>
+
+        <div class="calorie-summary">
+          <div>
+            <span>Intake</span>
+            <strong id="calorieIntakeText">0</strong>
+          </div>
+          <div>
+            <span>Walk</span>
+            <strong id="calorieWalkText">0</strong>
+          </div>
+          <div>
+            <span>Net</span>
+            <strong id="calorieNetText">0</strong>
+          </div>
+          <div>
+            <span>Macros</span>
+            <strong id="calorieMacrosText">0p / 0c / 0f</strong>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <h2>Food</h2>
+          <button id="openFoodModalBtn" class="btn ghost" type="button">Add Food</button>
+        </div>
+        <div id="foodList" class="food-list"></div>
+
+        <div class="section-head">
+          <h2>Incline Walk <span id="walkWeightLabel" class="heading-weight"></span></h2>
+        </div>
+        <div class="walk-calculator">
+          <label>
+            Grade %
+            <input type="number" id="walkGradeInput" min="0" step="0.1" inputmode="decimal" placeholder="0">
+          </label>
+          <label>
+            Speed kmph
+            <input type="number" id="walkSpeedInput" min="0" step="0.1" inputmode="decimal" placeholder="5.5">
+          </label>
+          <label>
+            Time mins:seconds
+            <input type="text" id="walkTimeInput" inputmode="numeric" placeholder="30:00">
+          </label>
+          <div class="walk-result">
+            <span>Burned</span>
+            <strong id="walkBurnedResult">0 cal</strong>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <h2>Previous Days</h2>
+        </div>
+        <ul id="calorieHistoryList" class="list calorie-history"></ul>
+      </div>
+    </section>
   </main>
+
+  <div id="foodModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="foodModalTitle">
+    <div class="modal-panel">
+      <div class="section-head">
+        <h2 id="foodModalTitle">Add Food</h2>
+        <button id="closeFoodModalBtn" class="btn ghost" type="button">Close</button>
+      </div>
+      <label>
+        Food
+        <select id="foodSelect"></select>
+      </label>
+      <label>
+        Weight g
+        <input type="number" id="foodWeightInput" min="0" step="1" inputmode="decimal" placeholder="100">
+      </label>
+      <div id="foodModalNutrition" class="food-modal-nutrition"></div>
+      <button id="addFoodConfirmBtn" class="btn btn-primary btn-block" type="button">Add</button>
+    </div>
+  </div>
 
   <template id="historyTemplate">
     <li class="history-item">

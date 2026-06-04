@@ -7,6 +7,7 @@ const APP_SHELL = [
   'styles.css',
   'app.js',
   'src/backup.js',
+  'src/calorieView.js',
   'src/chart.js',
   'src/config.js',
   'src/defaultProgram.js',

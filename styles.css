@@ -47,6 +47,13 @@ body::after {
 h1, h2, h3, h4 { margin: 0; font-family: var(--font-display); font-weight: 400; letter-spacing: 0.02em; }
 h2 { font-size: 28px; line-height: 1; }
 h3 { font-size: 22px; line-height: 1; }
+.heading-weight {
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: 0;
+  vertical-align: middle;
+}
 
 input, select, button {
   min-height: 42px;
@@ -159,15 +166,22 @@ label {
   position: sticky;
   top: calc(var(--header-h) + env(safe-area-inset-top));
   z-index: 6;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
   gap: 0;
   margin-top: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
   background: rgba(10,10,10,0.88);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line);
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
 }
+.tabbar::-webkit-scrollbar { display: none; }
 .tab {
+  flex: 0 0 auto;
+  min-width: 112px;
   min-height: 40px;
   border: 0;
   border-bottom: 2px solid transparent;
@@ -179,7 +193,9 @@ label {
   letter-spacing: 0.06em;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
-  padding: 0;
+  padding: 0 12px;
+  scroll-snap-align: start;
+  white-space: nowrap;
 }
 .tab.active {
   color: var(--text);
@@ -519,6 +535,215 @@ label {
   background: var(--surface);
 }
 
+/* ---- Calorie ---- */
+.calorie-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.calorie-goals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.calorie-goal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.calorie-goal-card > span,
+.calorie-summary span,
+.walk-result span {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.editable-goal {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 5px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.04em;
+}
+.editable-goal input {
+  width: 92px;
+  min-height: 38px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+.macro-progress {
+  height: 10px;
+  overflow: hidden;
+  background: #070707;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.macro-progress-fill {
+  width: 0;
+  height: 100%;
+  background: var(--danger);
+  transition: width 0.2s ease, background 0.2s ease;
+}
+.calorie-goal-card strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.calorie-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--line);
+}
+.calorie-summary div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px;
+  background: var(--surface);
+}
+.calorie-summary strong {
+  overflow-wrap: anywhere;
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  font-weight: 400;
+}
+.food-list,
+.logged-foods {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.logged-food {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.food-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.food-info strong {
+  font-family: var(--font-display);
+  font-size: 19px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  font-weight: 400;
+}
+.food-info span,
+.logged-food span {
+  color: var(--muted);
+  font-size: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.logged-food strong {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+}
+.walk-calculator {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(86px, 1fr));
+  gap: 8px;
+}
+.walk-calculator input {
+  width: 100%;
+}
+.walk-result {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 48px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.modal {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0,0,0,0.72);
+}
+.modal-panel {
+  width: min(460px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  box-shadow: 0 22px 60px rgba(0,0,0,0.5);
+}
+.food-modal-nutrition {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.walk-result strong {
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  font-weight: 400;
+}
+.calorie-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+}
+.calorie-history-item {
+  list-style: none;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--text);
+  font-size: 12px;
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 520px) {
   .app-header, .tabbar, .app-main { width: calc(100vw - 18px); }
@@ -527,4 +752,16 @@ label {
   .program-block { grid-template-columns: 1fr; }
   .session-preview-ex-name { font-size: 17px; }
   .session-active #currentExercise { font-size: clamp(28px, 10vw, 48px); }
+  .tab { font-size: 12px; }
+  .tab:first-child { margin-left: 0; }
+  .calorie-goals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .calorie-summary { grid-template-columns: repeat(4, minmax(72px, 1fr)); overflow-x: auto; }
+  .walk-calculator { grid-template-columns: repeat(3, minmax(76px, 1fr)); }
+  .logged-food { grid-template-columns: minmax(0, 1fr) auto; }
+  .logged-food .btn { grid-column: 1 / -1; }
+  .editable-goal input { width: 64px; font-size: 28px; }
+  .calorie-goal-card { padding: 10px; }
+  .calorie-summary strong { font-size: 17px; }
+  .walk-calculator label { font-size: 9px; }
+  .walk-calculator input { padding-inline: 8px; }
 }

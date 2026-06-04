@@ -1,4 +1,5 @@
 import { initBackup } from './src/backup.js';
+import { initCalorieView, renderCalorieView } from './src/calorieView.js';
 import { dom } from './src/dom.js';
 import { initHistoryView, renderHistory } from './src/historyView.js';
 import { initPwa } from './src/pwa.js';
@@ -21,7 +22,7 @@ function showScreen(screenName) {
     el.classList.toggle('hidden', name !== screenName);
   });
 
-  const primary = ['programs', 'session', 'history', 'track-weight'];
+  const primary = ['programs', 'session', 'history', 'track-weight', 'calorie'];
   const activeTab = primary.includes(screenName) ? screenName : 'programs';
   dom.tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.nav === activeTab));
 
@@ -29,6 +30,7 @@ function showScreen(screenName) {
   if (screenName === 'session') setHeaderSubtitle(hasActiveSession() ? 'Active' : 'Today');
   if (screenName === 'history') setHeaderSubtitle('History');
   if (screenName === 'track-weight') setHeaderSubtitle('Track Weight');
+  if (screenName === 'calorie') setHeaderSubtitle('Calorie');
 }
 
 function render() {
@@ -36,6 +38,7 @@ function render() {
   if (currentScreen === 'session') renderSessionSetup();
   if (currentScreen === 'history') renderHistory();
   if (currentScreen === 'track-weight') renderTrackWeight();
+  if (currentScreen === 'calorie') renderCalorieView();
   updateSessionUI();
 }
 
@@ -67,6 +70,7 @@ function boot() {
     }
   });
   initWeightView();
+  initCalorieView();
   initPwa();
 
   ensureDefaultProgramSeededIfEmpty();

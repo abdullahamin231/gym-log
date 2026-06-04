@@ -3,6 +3,7 @@ import { parseTargetReps, uid } from './utils.js';
 
 export const state = loadState();
 ensureUiDefaults();
+ensureCalorieDefaults();
 
 export function openDb() {
   return new Promise((resolve, reject) => {
@@ -21,12 +22,12 @@ export function openDb() {
 export function loadState() {
   try {
     const raw = localStorage.getItem(storageKey) || localStorage.getItem('gym-log-state-v1');
-    if (!raw) return { programs: [], exercises: [], history: [], ui: {}, weightEntries: [] };
+    if (!raw) return baseState();
     const parsed = JSON.parse(raw);
     return migrateIfNeeded(parsed);
   } catch (e) {
     console.error('Failed to parse storage', e);
-    return { programs: [], exercises: [], history: [], ui: {}, weightEntries: [] };
+    return baseState();
   }
 }
 
@@ -41,7 +42,10 @@ export function applyImportedState(next) {
   state.history = Array.isArray(migrated.history) ? migrated.history : [];
   state.ui = typeof migrated.ui === 'object' && migrated.ui ? migrated.ui : {};
   state.weightEntries = Array.isArray(migrated.weightEntries) ? migrated.weightEntries : [];
+  state.calorieGoals = typeof migrated.calorieGoals === 'object' && migrated.calorieGoals ? migrated.calorieGoals : {};
+  state.calorieDays = Array.isArray(migrated.calorieDays) ? migrated.calorieDays : [];
   ensureUiDefaults();
+  ensureCalorieDefaults();
   saveState();
 }
 
@@ -51,17 +55,43 @@ export function ensureUiDefaults() {
   if (typeof state.ui.defaultProgramSeeded !== 'boolean') state.ui.defaultProgramSeeded = false;
 }
 
+export function ensureCalorieDefaults() {
+  state.calorieGoals ||= {};
+  if (!Number.isFinite(Number(state.calorieGoals.protein)) || Number(state.calorieGoals.protein) <= 0) {
+    state.calorieGoals.protein = 150;
+  }
+  if (!Number.isFinite(Number(state.calorieGoals.calories)) || Number(state.calorieGoals.calories) <= 0) {
+    state.calorieGoals.calories = 1600;
+  }
+  if (!Array.isArray(state.calorieDays)) state.calorieDays = [];
+}
+
+function baseState() {
+  return {
+    programs: [],
+    exercises: [],
+    history: [],
+    ui: {},
+    weightEntries: [],
+    calorieGoals: { protein: 150, calories: 1600 },
+    calorieDays: []
+  };
+}
+
 function migrateIfNeeded(parsed) {
   if (Array.isArray(parsed.exercises) && Array.isArray(parsed.programs)) {
     return {
       ...parsed,
       ui: parsed.ui || {},
-      weightEntries: Array.isArray(parsed.weightEntries) ? parsed.weightEntries : []
+      weightEntries: Array.isArray(parsed.weightEntries) ? parsed.weightEntries : [],
+      calorieGoals: parsed.calorieGoals || { protein: 150, calories: 1600 },
+      calorieDays: Array.isArray(parsed.calorieDays) ? parsed.calorieDays : []
     };
   }
 
   const old = parsed;
-  const next = { programs: [], exercises: [], history: Array.isArray(old.history) ? old.history : [], ui: {}, weightEntries: [] };
+  const next = baseState();
+  next.history = Array.isArray(old.history) ? old.history : [];
   const byName = new Map();
 
   const getOrCreateExercise = (name) => {

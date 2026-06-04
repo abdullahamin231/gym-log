@@ -23,6 +23,8 @@ async function exportAllData() {
       exercises: state.exercises,
       history: state.history,
       weightEntries: state.weightEntries,
+      calorieGoals: state.calorieGoals,
+      calorieDays: state.calorieDays,
       ui: state.ui
     },
     indexedDb: {
