@@ -25,6 +25,7 @@
     <button class="tab" data-nav="programs" type="button">Program</button>
     <button class="tab active" data-nav="session" type="button">Session</button>
     <button class="tab" data-nav="history" type="button">History</button>
+    <button class="tab" data-nav="track-weight" type="button">Weight</button>
   </nav>
 
   <main class="app-main">
@@ -103,6 +104,23 @@
           </div>
         </div>
         <ul id="historyList" class="list history"></ul>
+      </div>
+    </section>
+
+    <!-- Track Weight -->
+    <section class="screen hidden" id="screen-track-weight" data-screen="track-weight">
+      <div class="card">
+        <div class="section-head">
+          <h2>Track Weight</h2>
+        </div>
+        <div class="weight-input-row">
+          <input type="number" id="weightInput" step="0.1" min="0" inputmode="decimal" placeholder="Weight (kg)">
+          <button id="logWeightBtn" class="btn btn-primary" type="button">Log</button>
+        </div>
+        <div id="weightLogStatus" class="muted" style="text-align:center"></div>
+        <div class="weight-chart">
+          <canvas id="weightChart" class="chart" width="600" height="280" aria-label="Body weight chart"></canvas>
+        </div>
       </div>
     </section>
   </main>

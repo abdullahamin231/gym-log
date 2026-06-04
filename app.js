@@ -74,7 +74,8 @@ const hardcodedProgramSheet = document.getElementById('hardcodedProgramSheet');
 const screens = {
   programs: document.getElementById('screen-programs'),
   session: document.getElementById('screen-session'),
-  history: document.getElementById('screen-history')
+  history: document.getElementById('screen-history'),
+  'track-weight': document.getElementById('screen-track-weight')
 };
 
 const tabButtons = Array.from(document.querySelectorAll('.tabbar .tab'));
@@ -108,6 +109,11 @@ const historyChartEmpty = document.getElementById('historyChartEmpty');
 const exportBtn = document.getElementById('exportBtn');
 const importBtn = document.getElementById('importBtn');
 const importFile = document.getElementById('importFile');
+
+const weightInput = document.getElementById('weightInput');
+const logWeightBtn = document.getElementById('logWeightBtn');
+const weightChart = document.getElementById('weightChart');
+const weightLogStatus = document.getElementById('weightLogStatus');
 
 let deferredPrompt = null;
 
@@ -165,12 +171,12 @@ function openDb() {
 function loadState() {
   try {
     const raw = localStorage.getItem(storageKey) || localStorage.getItem('gym-log-state-v1');
-    if (!raw) return { programs: [], exercises: [], history: [], ui: {} };
+    if (!raw) return { programs: [], exercises: [], history: [], ui: {}, weightEntries: [] };
     const parsed = JSON.parse(raw);
     return migrateIfNeeded(parsed);
   } catch (e) {
     console.error('Failed to parse storage', e);
-    return { programs: [], exercises: [], history: [], ui: {} };
+    return { programs: [], exercises: [], history: [], ui: {}, weightEntries: [] };
   }
 }
 
@@ -184,6 +190,7 @@ function applyImportedState(next) {
   state.exercises = Array.isArray(migrated.exercises) ? migrated.exercises : [];
   state.history = Array.isArray(migrated.history) ? migrated.history : [];
   state.ui = typeof migrated.ui === 'object' && migrated.ui ? migrated.ui : {};
+  state.weightEntries = Array.isArray(migrated.weightEntries) ? migrated.weightEntries : [];
   ensureUiDefaults();
   saveState();
 }
@@ -195,10 +202,10 @@ function ensureUiDefaults() {
 }
 
 function migrateIfNeeded(parsed) {
-  if (Array.isArray(parsed.exercises) && Array.isArray(parsed.programs)) return { ...parsed, ui: parsed.ui || {} };
+  if (Array.isArray(parsed.exercises) && Array.isArray(parsed.programs)) return { ...parsed, ui: parsed.ui || {}, weightEntries: Array.isArray(parsed.weightEntries) ? parsed.weightEntries : [] };
 
   const old = parsed;
-  const next = { programs: [], exercises: [], history: Array.isArray(old.history) ? old.history : [], ui: {} };
+  const next = { programs: [], exercises: [], history: Array.isArray(old.history) ? old.history : [], ui: {}, weightEntries: [] };
   const byName = new Map();
 
   const getOrCreateExercise = (name) => {
@@ -363,13 +370,14 @@ function showScreen(screenName) {
     el.classList.toggle('hidden', name !== screenName);
   });
 
-  const primary = ['programs', 'session', 'history'];
+  const primary = ['programs', 'session', 'history', 'track-weight'];
   const activeTab = primary.includes(screenName) ? screenName : 'programs';
   tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.nav === activeTab));
 
   if (screenName === 'programs') setHeaderSubtitle('Program');
   if (screenName === 'session') setHeaderSubtitle(session ? 'Active' : 'Today');
   if (screenName === 'history') setHeaderSubtitle('History');
+  if (screenName === 'track-weight') setHeaderSubtitle('Track Weight');
 }
 
 tabButtons.forEach(btn => {
@@ -703,6 +711,7 @@ async function exportAllData() {
       programs: state.programs,
       exercises: state.exercises,
       history: state.history,
+      weightEntries: state.weightEntries,
       ui: state.ui
     },
     indexedDb: {
@@ -805,10 +814,36 @@ importFile?.addEventListener('change', async () => {
   await importAllData(file);
 });
 
+function logWeight() {
+  const raw = weightInput?.value.trim();
+  const val = parseFloat(raw);
+  if (isNaN(val) || val <= 0) return;
+  const entry = { id: uid(), date: new Date().toISOString().slice(0, 10), weight: val };
+  state.weightEntries.push(entry);
+  saveState();
+  weightInput.value = '';
+  weightLogStatus.textContent = `Logged ${val} kg`;
+  renderTrackWeight();
+}
+
+logWeightBtn?.addEventListener('click', logWeight);
+weightInput?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') logWeight();
+});
+
+function renderTrackWeight() {
+  const series = state.weightEntries
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(e => ({ x: e.date, y: e.weight }));
+  drawLineChart(weightChart, series, { yLabel: 'kg' });
+}
+
 function render() {
   if (currentScreen === 'programs') renderPrograms();
   if (currentScreen === 'session') renderSessionSetup();
   if (currentScreen === 'history') renderHistory();
+  if (currentScreen === 'track-weight') renderTrackWeight();
   updateSessionUI();
 }
 
