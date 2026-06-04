@@ -158,7 +158,7 @@ function addSelectedFood() {
 function renderWalk(day) {
   if (dom.walkGradeInput && document.activeElement !== dom.walkGradeInput) dom.walkGradeInput.value = day.walk.grade ?? '';
   if (dom.walkSpeedInput && document.activeElement !== dom.walkSpeedInput) dom.walkSpeedInput.value = day.walk.speed ?? '';
-  if (dom.walkTimeInput && document.activeElement !== dom.walkTimeInput) dom.walkTimeInput.value = day.walk.time ?? '';
+  if (dom.walkTimeInput && document.activeElement !== dom.walkTimeInput) dom.walkTimeInput.value = formatWalkMinutes(day.walk.time);
   if (dom.walkWeightLabel) dom.walkWeightLabel.textContent = `(${round(latestWeightKg())}kg)`;
   if (dom.walkBurnedResult) dom.walkBurnedResult.textContent = `${round(day.walk.burned || 0)} cal`;
 }
@@ -178,7 +178,7 @@ function saveWalkBurn() {
 function calculateWalkBurn(walk) {
   const grade = Number(walk.grade);
   const speedKmph = Number(walk.speed);
-  const minutes = parseDuration(walk.time);
+  const minutes = parseWalkMinutes(walk.time);
   const weightKg = latestWeightKg();
   if (![grade, speedKmph, minutes, weightKg].every(Number.isFinite) || speedKmph <= 0 || minutes <= 0 || weightKg <= 0) {
     return 0;
@@ -195,13 +195,18 @@ function latestWeightKg() {
   return Number(latest?.weight) || 70;
 }
 
-function parseDuration(raw) {
+function parseWalkMinutes(raw) {
   const value = String(raw || '').trim();
   if (!value) return 0;
-  if (!value.includes(':')) return Number(value) || 0;
+  if (!value.includes(':')) return Number(value);
   const [mins, secs] = value.split(':').map(part => Number(part));
   if (!Number.isFinite(mins) || !Number.isFinite(secs)) return 0;
   return mins + (secs / 60);
+}
+
+function formatWalkMinutes(raw) {
+  const minutes = parseWalkMinutes(raw);
+  return Number.isFinite(minutes) && minutes > 0 ? String(round(minutes)) : '';
 }
 
 function renderTotals(day) {
