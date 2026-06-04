@@ -6,6 +6,20 @@ const APP_SHELL = [
   'index.html',
   'styles.css',
   'app.js',
+  'src/backup.js',
+  'src/chart.js',
+  'src/config.js',
+  'src/defaultProgram.js',
+  'src/dom.js',
+  'src/historyView.js',
+  'src/programStore.js',
+  'src/programView.js',
+  'src/pwa.js',
+  'src/sessionController.js',
+  'src/sessionPreview.js',
+  'src/storage.js',
+  'src/utils.js',
+  'src/weightView.js',
   'manifest.json',
   'icons/icon-192.png',
   'icons/icon-512.png',
@@ -40,6 +54,7 @@ self.addEventListener('fetch', event => {
     isNavigation ||
     url.pathname.endsWith('/index.html') ||
     url.pathname.endsWith('/app.js') ||
+    url.pathname.includes('/src/') ||
     url.pathname.endsWith('/styles.css') ||
     url.pathname.endsWith('/manifest.json') ||
     url.pathname.includes('/icons/');
