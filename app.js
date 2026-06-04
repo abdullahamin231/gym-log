@@ -17,7 +17,7 @@ const dbVersion = 1;
 const state = loadState();
 ensureUiDefaults();
 
-let currentScreen = 'programs';
+let currentScreen = 'session';
 let selectedProgramId = null;
 let selectedDayId = null; // for editing day in program detail
 
@@ -29,9 +29,53 @@ let session = null;
 //   log:[{ name, targetReps:number[], sets:[{reps:number|null, weight:number|null}] }]
 // }
 
+const hardcodedProgram = {
+  name: 'program',
+  days: [
+    {
+      name: 'Upper 1',
+      blocks: [
+        [{ name: 'Incline Bench', sets: 3, target: 8, display: '2-3 sets 4-8 reps' }, { name: 'DB Row', sets: 2, target: 12, display: '2 sets 8-12 reps' }],
+        [{ name: 'Pec Deck', sets: 3, target: 12, display: '3 sets 8-12 reps' }, { name: 'Back Row Machine', sets: 3, target: 12, display: '3 sets 8-12 reps' }],
+        [{ name: 'DB OHP', sets: 2, target: 12, display: '2 sets 8-12 reps' }, { name: 'EZ Bar Curls', sets: 2, targets: [4, 12], display: '30kgx4, 25kgx12' }],
+        [{ name: 'Machine Triceps Extension', sets: 3, target: 12, display: '3 sets 8-12 reps' }, { name: 'Ab Crunches', sets: 3, target: 12, display: '3x8-12' }]
+      ]
+    },
+    {
+      name: 'Lower',
+      blocks: [
+        [{ name: 'Barbell Squats', sets: 2, target: 8, display: '2 sets 4-8 reps' }, { name: 'Hammer Curls', sets: 3, target: 12, display: '3 sets 8-12 reps' }],
+        [{ name: 'RDL', sets: 2, target: 8, display: '2 sets 4-8 reps' }, { name: 'Ab Crunches', sets: 2, target: 8, display: '2 sets 4-8 reps' }],
+        [{ name: 'Quad Isolation', sets: 4, target: 20, display: '3-4x15-20' }, { name: 'Neck Extensions', sets: 4, target: 20, display: '3-4x15-20' }]
+      ]
+    },
+    {
+      name: 'Arms',
+      blocks: [
+        [{ name: 'Close Grip Bench', sets: 3, target: 8, display: '2-3 sets 4-8 reps' }, { name: 'DB Pullovers', sets: 3, target: 8, display: '2-3 sets 4-8 reps' }],
+        [{ name: 'Skull-crushers', sets: 3, target: 12, display: '2-3 sets 8-12 reps' }, { name: 'EZ Bar Curls', sets: 3, target: 12, display: '2-3 sets 8-12 reps' }],
+        [{ name: 'Hammer Curls', sets: 3, target: 12, display: '2-3 sets 8-12 reps' }, { name: 'Upright Rows', sets: 3, target: 12, display: '2-3 sets 8-12 reps' }],
+        [{ name: 'Ab Crunches', sets: 3, target: 12, display: '3 sets 8-12 reps' }]
+      ]
+    },
+    {
+      name: 'Upper 2',
+      subtitle: 'Back focused',
+      blocks: [
+        [{ name: 'Incline Bench Press', sets: 3, target: 8, display: '2-3 sets 4-8 reps' }],
+        [{ name: 'DB Rows', sets: 2, target: 12, display: '2 sets 8-12 reps' }, { name: 'Back Row Machine', sets: 3, target: 12, display: '3 sets 8-12 reps' }],
+        [{ name: 'Pullups', sets: 3, target: 0, display: '3 sets AMRAP' }, { name: 'Triceps Pushdowns', sets: 2, targets: [7, 6], display: '14px7, 6' }],
+        [{ name: 'Bicep Curls', sets: 3, target: 12, display: '2-3 sets 8-12 reps' }, { name: 'Ab Crunches', sets: 2, targets: [10, 8], display: '5p x10, 8' }],
+        [{ name: 'Cable Lateral Raises', sets: 3, target: 15, display: '3 sets 8-15' }]
+      ]
+    }
+  ]
+};
+
 // ---------- DOM ----------
 const headerSubtitle = document.getElementById('headerSubtitle');
 const installBtn = document.getElementById('installBtn');
+const hardcodedProgramSheet = document.getElementById('hardcodedProgramSheet');
 
 const screens = {
   programs: document.getElementById('screen-programs'),
@@ -92,6 +136,14 @@ const historyChartEmpty = document.getElementById('historyChartEmpty');
 const exportBtn = document.getElementById('exportBtn');
 const importBtn = document.getElementById('importBtn');
 const importFile = document.getElementById('importFile');
+
+const sessionPreview = document.getElementById('sessionPreview');
+const sessionPreviewDay = document.getElementById('sessionPreviewDay');
+const sessionPreviewProgram = document.getElementById('sessionPreviewProgram');
+const sessionPreviewExerciseCount = document.getElementById('sessionPreviewExerciseCount');
+const sessionPreviewExercises = document.getElementById('sessionPreviewExercises');
+const sessionPreviewStart = document.getElementById('sessionPreviewStart');
+const sessionPreviewPick = document.getElementById('sessionPreviewPick');
 
 let deferredPrompt = null;
 
@@ -269,9 +321,14 @@ function formatTargetReps(targetReps) {
 }
 
 function ensureDefaultProgramSeededIfEmpty() {
-  if (state.programs.length) return;
   state.ui ||= {};
-  if (state.ui.defaultProgramSeeded) return;
+  const existingHardcoded = state.programs.find(p => normalizeExerciseName(p.name) === normalizeExerciseName(hardcodedProgram.name));
+  if (existingHardcoded) {
+    state.ui.defaultProgramId = existingHardcoded.id;
+    state.ui.defaultProgramSeeded = true;
+    saveState();
+    return;
+  }
 
   const exerciseIdByName = new Map(state.exercises.map(ex => [normalizeExerciseName(ex.name), ex.id]));
   const getOrCreateExerciseId = (name) => {
@@ -285,43 +342,31 @@ function ensureDefaultProgramSeededIfEmpty() {
     return ex.id;
   };
 
-  const addItem = (day, exerciseName, sets, target) => {
+  const addItem = (day, exerciseName, sets, targetReps) => {
     const exerciseId = getOrCreateExerciseId(exerciseName);
     if (!exerciseId) return;
     const setCount = Math.max(1, Number(sets) || 1);
-    const t = Number.isFinite(Number(target)) ? Number(target) : 0;
+    const reps = Array.isArray(targetReps)
+      ? ensureTargetRepsLength(targetReps, setCount)
+      : Array(setCount).fill(Number.isFinite(Number(targetReps)) ? Number(targetReps) : 0);
     day.items.push({
       id: uid(),
       exerciseId,
       sets: setCount,
-      targetReps: Array(setCount).fill(t)
+      targetReps: reps
     });
   };
 
-  const program = { id: uid(), name: 'myprogram', nextDayIndex: 0, days: [] };
+  const program = { id: uid(), name: hardcodedProgram.name, nextDayIndex: 0, days: [] };
 
-  const day1 = { id: uid(), name: 'Day 1 — chest and bi', items: [] };
-  addItem(day1, 'Bench Press', 2, 8);
-  addItem(day1, 'Barbell Curl', 2, 8);
-  addItem(day1, 'Incline Bench Press', 2, 8);
-  addItem(day1, 'Bicep Curl', 2, 8);
-  addItem(day1, 'Lateral Raise', 2, 10);
+  hardcodedProgram.days.forEach(sourceDay => {
+    const day = { id: uid(), name: sourceDay.subtitle ? `${sourceDay.name} (${sourceDay.subtitle})` : sourceDay.name, items: [] };
+    sourceDay.blocks.flat().forEach(item => {
+      addItem(day, item.name, item.sets, item.targets || item.target);
+    });
+    program.days.push(day);
+  });
 
-  const day2 = { id: uid(), name: 'Day 2 — back and tri', items: [] };
-  addItem(day2, 'Lat Pulldown', 2, 8);
-  addItem(day2, 'Tricep Extension', 3, 8);
-  addItem(day2, 'Barbell Row', 2, 8);
-  addItem(day2, 'Barbell Skullcrushers', 3, 8);
-  addItem(day2, 'Lateral Raise', 2, 10);
-
-  const day3 = { id: uid(), name: 'Day 3 — Legs', items: [] };
-  addItem(day3, 'Squat', 3, 5);
-  addItem(day3, 'Romanian Deadlift', 3, 8);
-  addItem(day3, 'Leg Press', 3, 10);
-  addItem(day3, 'Leg Raise', 3, 0);
-  addItem(day3, 'Machine Ab Crunches', 3, 0);
-
-  program.days.push(day1, day2, day3);
   state.programs.push(program);
   state.ui.defaultProgramId = program.id;
   state.ui.defaultProgramSeeded = true;
@@ -358,7 +403,7 @@ function showScreen(screenName) {
   if (screenName === 'programs') setHeaderSubtitle('Programs');
   if (screenName === 'programDetail') setHeaderSubtitle('Programs • Days');
   if (screenName === 'exercises') setHeaderSubtitle('Exercises');
-  if (screenName === 'session') setHeaderSubtitle('Session');
+  if (screenName === 'session') setHeaderSubtitle(session ? 'Active' : 'Today');
   if (screenName === 'history') setHeaderSubtitle('History');
 }
 
@@ -372,7 +417,53 @@ tabButtons.forEach(btn => {
 });
 
 // ---------- Rendering ----------
+function renderHardcodedProgramSheet() {
+  if (!hardcodedProgramSheet) return;
+  hardcodedProgramSheet.innerHTML = '';
+
+  const title = document.createElement('div');
+  title.className = 'program-sheet-title';
+  title.textContent = hardcodedProgram.name;
+  hardcodedProgramSheet.appendChild(title);
+
+  hardcodedProgram.days.forEach(day => {
+    const section = document.createElement('section');
+    section.className = 'program-day';
+
+    const heading = document.createElement('div');
+    heading.className = 'program-day-heading';
+    const name = document.createElement('h3');
+    name.textContent = day.name;
+    heading.appendChild(name);
+    if (day.subtitle) {
+      const subtitle = document.createElement('span');
+      subtitle.textContent = day.subtitle;
+      heading.appendChild(subtitle);
+    }
+    section.appendChild(heading);
+
+    day.blocks.forEach(block => {
+      const row = document.createElement('div');
+      row.className = 'program-block';
+      block.forEach(item => {
+        const cell = document.createElement('div');
+        cell.className = 'program-prescription';
+        const exercise = document.createElement('strong');
+        exercise.textContent = item.name;
+        const prescription = document.createElement('span');
+        prescription.textContent = item.display;
+        cell.append(exercise, prescription);
+        row.appendChild(cell);
+      });
+      section.appendChild(row);
+    });
+
+    hardcodedProgramSheet.appendChild(section);
+  });
+}
+
 function renderPrograms() {
+  renderHardcodedProgramSheet();
   programList.innerHTML = '';
   if (!state.programs.length) {
     const li = document.createElement('li');
@@ -416,7 +507,7 @@ function renderPrograms() {
 function renderProgramDetail() {
   const program = findProgram(selectedProgramId);
   if (!program) {
-    showScreen('programs');
+  showScreen('session');
     return;
   }
 
@@ -623,36 +714,45 @@ function renderSessionSetup() {
   saveState();
 
   renderSessionDays();
+  renderSessionPreview();
 }
 
-function renderSessionDays() {
+function renderSessionPreview() {
   const program = findProgram(sessionProgramSelect.value);
-  sessionDaySelect.innerHTML = '';
-  if (!program?.days.length) {
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = 'No days in this program';
-    sessionDaySelect.appendChild(opt);
-    sessionDaySelect.disabled = true;
-    nextDayHint.textContent = 'Add days to this program to start sessions.';
+  if (!program || !program.days.length || session) {
+    sessionPreview?.classList.add('hidden');
+    sessionSetupCard?.classList.remove('hidden');
     return;
   }
-  sessionDaySelect.disabled = false;
-  program.days.forEach(d => {
-    const opt = document.createElement('option');
-    opt.value = d.id;
-    opt.textContent = d.name;
-    sessionDaySelect.appendChild(opt);
-  });
-
   const { day } = getDefaultDayForProgram(program);
-  sessionDaySelect.value = day?.id || program.days[0].id;
-  if (pickDayToggle.checked) {
-    nextDayHint.textContent = '';
-  } else {
-    const name = day?.name || program.days[0].name;
-    nextDayHint.textContent = `Next up: ${name} (auto-rotates each completion)`;
+  if (!day) {
+    sessionPreview?.classList.add('hidden');
+    sessionSetupCard?.classList.remove('hidden');
+    return;
   }
+
+  sessionPreview?.classList.remove('hidden');
+  sessionSetupCard?.classList.add('hidden');
+
+  sessionPreviewDay.textContent = day.name;
+  sessionPreviewProgram.textContent = program.name;
+  sessionPreviewExerciseCount.textContent = `${day.items.length} exercise${day.items.length !== 1 ? 's' : ''}`;
+
+  sessionPreviewExercises.innerHTML = '';
+  day.items.forEach(item => {
+    const ex = findExercise(item.exerciseId);
+    if (!ex) return;
+    const li = document.createElement('li');
+    li.className = 'session-preview-item';
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'session-preview-ex-name';
+    nameSpan.textContent = ex.name;
+    const metaSpan = document.createElement('span');
+    metaSpan.className = 'session-preview-ex-meta';
+    metaSpan.textContent = `${item.sets} \u00d7 ${formatTargetReps(item.targetReps)}`;
+    li.append(nameSpan, metaSpan);
+    sessionPreviewExercises.appendChild(li);
+  });
 }
 
 function renderHistory() {
@@ -765,7 +865,7 @@ function drawLineChart(canvas, points, { yLabel } = {}) {
   if (canvas.height !== h) canvas.height = h;
 
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#0f111a';
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, w, h);
 
   const padL = 46 * dpr;
@@ -775,7 +875,7 @@ function drawLineChart(canvas, points, { yLabel } = {}) {
   const plotW = w - padL - padR;
   const plotH = h - padT - padB;
 
-  ctx.strokeStyle = 'rgba(31,41,55,0.9)';
+  ctx.strokeStyle = 'rgba(17,17,17,0.55)';
   ctx.lineWidth = 1 * dpr;
   ctx.beginPath();
   ctx.moveTo(padL, padT);
@@ -783,12 +883,12 @@ function drawLineChart(canvas, points, { yLabel } = {}) {
   ctx.lineTo(padL + plotW, padT + plotH);
   ctx.stroke();
 
-  ctx.fillStyle = 'rgba(156,163,175,0.9)';
-  ctx.font = `${12 * dpr}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial`;
+  ctx.fillStyle = 'rgba(111,111,104,0.95)';
+  ctx.font = `${12 * dpr}px Avenir Next, Helvetica`;
   if (yLabel) ctx.fillText(yLabel, 10 * dpr, 14 * dpr);
 
   if (!points.length) {
-    ctx.fillStyle = 'rgba(156,163,175,0.7)';
+    ctx.fillStyle = 'rgba(111,111,104,0.75)';
     ctx.fillText('No data', padL + 10 * dpr, padT + plotH / 2);
     return;
   }
@@ -809,12 +909,12 @@ function drawLineChart(canvas, points, { yLabel } = {}) {
 
   // Y ticks
   const ticks = 4;
-  ctx.fillStyle = 'rgba(156,163,175,0.85)';
+  ctx.fillStyle = 'rgba(111,111,104,0.9)';
   for (let i = 0; i <= ticks; i++) {
     const t = i / ticks;
     const yVal = minY + (1 - t) * (maxY - minY);
     const yPx = padT + t * plotH;
-    ctx.strokeStyle = 'rgba(31,41,55,0.55)';
+    ctx.strokeStyle = 'rgba(216,216,210,0.9)';
     ctx.beginPath();
     ctx.moveTo(padL, yPx);
     ctx.lineTo(padL + plotW, yPx);
@@ -827,7 +927,7 @@ function drawLineChart(canvas, points, { yLabel } = {}) {
   }
 
   // Line
-  ctx.strokeStyle = 'rgba(102,252,241,0.9)';
+  ctx.strokeStyle = 'rgba(0,87,216,0.9)';
   ctx.lineWidth = 2 * dpr;
   ctx.beginPath();
   points.forEach((p, i) => {
@@ -839,7 +939,7 @@ function drawLineChart(canvas, points, { yLabel } = {}) {
   ctx.stroke();
 
   // Points
-  ctx.fillStyle = 'rgba(102,252,241,1)';
+  ctx.fillStyle = 'rgba(0,87,216,1)';
   points.forEach((p, i) => {
     const x = xToPx(i);
     const y = yToPx(p.y);
@@ -851,7 +951,7 @@ function drawLineChart(canvas, points, { yLabel } = {}) {
   // X labels (first/last)
   const firstDate = new Date(points[0].x);
   const lastDate = new Date(points[points.length - 1].x);
-  ctx.fillStyle = 'rgba(156,163,175,0.85)';
+  ctx.fillStyle = 'rgba(111,111,104,0.9)';
   ctx.fillText(firstDate.toLocaleDateString(), padL, padT + plotH + 18 * dpr);
   const lastLabel = lastDate.toLocaleDateString();
   const metrics = ctx.measureText(lastLabel);
@@ -1119,6 +1219,16 @@ pickDayToggle.addEventListener('change', () => {
   renderSessionDays();
 });
 
+sessionPreviewStart?.addEventListener('click', () => {
+  if (session) return;
+  sessionSetupForm.requestSubmit();
+});
+
+sessionPreviewPick?.addEventListener('click', () => {
+  sessionPreview?.classList.add('hidden');
+  sessionSetupCard?.classList.remove('hidden');
+});
+
 sessionProgramSelect.addEventListener('change', () => {
   state.ui.defaultProgramId = sessionProgramSelect.value;
   saveState();
@@ -1260,14 +1370,14 @@ function completeSession(force) {
 function updateSessionUI() {
   if (!session) {
     document.body.classList.remove('session-active');
-    sessionSetupCard?.classList.remove('hidden');
-    sessionRunCard?.classList.remove('hidden');
+    sessionRunCard?.classList.add('hidden');
     sessionControls.classList.add('hidden');
     sessionStatus.textContent = 'No active session. Start one above.';
     return;
   }
 
   document.body.classList.add('session-active');
+  sessionRunCard?.classList.remove('hidden');
   sessionControls.classList.remove('hidden');
   const current = session.exercises[session.exerciseIndex];
   currentExerciseEl.textContent = current.name;
@@ -1383,6 +1493,6 @@ if ('serviceWorker' in navigator) {
 // ---------- Boot ----------
 (async function boot() {
   ensureDefaultProgramSeededIfEmpty();
-  showScreen('programs');
+  showScreen('session');
   render();
 })();

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#0b0c10">
+  <meta name="theme-color" content="#0a0a0a">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -15,26 +15,27 @@
 <body class="app">
   <header class="app-header">
     <div class="app-title">
-      <div class="app-name">Gym Log</div>
-      <div id="headerSubtitle" class="app-subtitle">Offline-first</div>
+      <div class="app-name">IRON</div>
+      <div id="headerSubtitle" class="app-subtitle">Session</div>
     </div>
     <button id="installBtn" class="btn ghost" type="button" style="display:none">Install</button>
   </header>
 
   <nav class="tabbar" aria-label="Primary navigation">
-    <button class="tab active" data-nav="programs" type="button">Programs</button>
+    <button class="tab" data-nav="programs" type="button">Programs</button>
     <button class="tab" data-nav="exercises" type="button">Exercises</button>
-    <button class="tab" data-nav="session" type="button">Session</button>
+    <button class="tab active" data-nav="session" type="button">Session</button>
     <button class="tab" data-nav="history" type="button">History</button>
   </nav>
 
   <main class="app-main">
-    <!-- Programs (root) -->
-    <section class="screen" id="screen-programs" data-screen="programs">
+    <!-- Programs -->
+    <section class="screen hidden" id="screen-programs" data-screen="programs">
       <div class="card">
         <div class="section-head">
           <h2>Programs</h2>
         </div>
+        <div id="hardcodedProgramSheet" class="program-sheet" aria-label="Hardcoded program"></div>
         <form id="programForm" class="inline-form">
           <input name="programName" type="text" placeholder="New program" required autocomplete="off">
           <button class="btn" type="submit">Add</button>
@@ -43,7 +44,7 @@
       </div>
     </section>
 
-    <!-- Program detail (days + day builder) -->
+    <!-- Program detail -->
     <section class="screen hidden" id="screen-program-detail" data-screen="programDetail">
       <div class="card">
         <div class="section-head">
@@ -54,9 +55,7 @@
             <button id="deleteProgramBtn" class="btn ghost danger" type="button">Delete</button>
           </div>
         </div>
-
         <div class="divider"></div>
-
         <div class="section-head">
           <h3>Days</h3>
         </div>
@@ -65,9 +64,7 @@
           <button class="btn" type="submit">Add</button>
         </form>
         <ul id="dayList" class="list"></ul>
-
         <div class="divider"></div>
-
         <div id="dayEditor" class="day-editor hidden">
           <div class="section-head">
             <h3 id="dayEditorTitle">Day</h3>
@@ -76,7 +73,6 @@
               <button id="deleteDayBtn" class="btn ghost danger" type="button">Delete</button>
             </div>
           </div>
-
           <form id="dayItemForm" class="stacked">
             <label>
               Exercise
@@ -87,9 +83,8 @@
               <label>Target reps <input name="target" type="text" placeholder="8 or 8,8,6" required></label>
             </div>
             <button class="btn" type="submit">Add To Day</button>
-            <div class="muted">Tip: Manage the exercise list in the Exercises tab.</div>
+            <div class="muted">Manage exercises in the Exercises tab.</div>
           </form>
-
           <ul id="dayItemList" class="list"></ul>
         </div>
       </div>
@@ -102,20 +97,38 @@
           <h2>Exercises</h2>
         </div>
         <form id="exerciseForm" class="inline-form">
-          <input name="exerciseName" type="text" placeholder="New exercise (e.g. Bench Press)" required autocomplete="off">
+          <input name="exerciseName" type="text" placeholder="New exercise" required autocomplete="off">
           <button class="btn" type="submit">Add</button>
         </form>
         <ul id="exerciseList" class="list"></ul>
       </div>
     </section>
 
-    <!-- Session -->
-    <section class="screen hidden" id="screen-session" data-screen="session">
-      <div class="card" id="sessionSetupCard">
+    <!-- Session (HOME) -->
+    <section class="screen" id="screen-session" data-screen="session">
+      <!-- Today's workout preview -->
+      <div id="sessionPreview" class="session-preview">
+        <div class="session-preview-header">
+          <span class="session-preview-label">Today</span>
+          <h2 id="sessionPreviewDay" class="session-preview-day">—</h2>
+          <div class="session-preview-meta">
+            <span id="sessionPreviewProgram"></span>
+            <span class="dot">&#183;</span>
+            <span id="sessionPreviewExerciseCount" class="muted"></span>
+          </div>
+        </div>
+        <ul id="sessionPreviewExercises" class="session-preview-list"></ul>
+        <div class="session-preview-actions">
+          <button id="sessionPreviewStart" class="btn btn-primary btn-block" type="button">Start Session</button>
+          <button id="sessionPreviewPick" class="btn btn-link btn-block" type="button">Choose a different workout</button>
+        </div>
+      </div>
+
+      <!-- Setup form (collapsible) -->
+      <div class="card hidden" id="sessionSetupCard">
         <div class="section-head">
           <h2>Start Session</h2>
         </div>
-
         <form id="sessionSetupForm" class="stacked">
           <label>
             Program
@@ -123,7 +136,7 @@
           </label>
           <label class="toggle">
             <input id="pickDayToggle" type="checkbox">
-            <span>Pick a specific day (optional)</span>
+            <span>Pick a specific day</span>
           </label>
           <label id="sessionDayLabel" class="hidden">
             Day
@@ -134,28 +147,29 @@
         </form>
       </div>
 
+      <!-- Active session -->
       <div class="card" id="sessionRunCard">
         <div class="section-head">
-          <h2>Current Session</h2>
+          <h2>Session</h2>
           <button id="completeSessionBtn" class="btn ghost danger" type="button">Complete</button>
         </div>
         <div id="sessionStatus" class="status">No active session.</div>
-        <div id="sessionControls" class="session hidden">
-          <div class="current">
-            <div class="exercise-head">
-              <button id="prevExerciseBtn" class="btn ghost" type="button" aria-label="Previous exercise">◀</button>
-              <button id="nextExerciseBtn" class="btn ghost" type="button" aria-label="Next exercise">▶</button>
-              <div class="label">Current Exercise</div>
-            </div>
-            <div id="currentExercise"></div>
-            <div id="setProgress" class="muted"></div>
-            <div class="row">
-              <button id="removeSetBtn" class="btn ghost" type="button">− Set</button>
-              <button id="addSetBtn" class="btn ghost" type="button">+ Set</button>
-            </div>
+        <div id="sessionControls" class="current hidden">
+          <div class="session-status-bar">
+            <span id="setProgress" class="muted"></span>
           </div>
-          <div id="setsGrid" class="sets-grid" aria-label="Sets grid"></div>
+          <div class="exercise-head">
+            <button id="prevExerciseBtn" class="btn ghost" type="button" aria-label="Previous exercise">&#8592;</button>
+            <div class="label" id="sessionExerciseLabel">Current</div>
+            <button id="nextExerciseBtn" class="btn ghost" type="button" aria-label="Next exercise">&#8594;</button>
+          </div>
+          <div id="currentExercise"></div>
+          <div class="row" style="justify-content:center">
+            <button id="removeSetBtn" class="btn ghost" type="button">&minus; Set</button>
+            <button id="addSetBtn" class="btn ghost" type="button">+ Set</button>
+          </div>
         </div>
+        <div id="setsGrid" class="sets-grid" aria-label="Sets grid"></div>
       </div>
     </section>
 
