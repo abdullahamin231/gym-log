@@ -25,10 +25,14 @@ export function initCalorieView() {
     if (e.key === 'Enter') addSelectedFood();
   });
   dom.addFoodConfirmBtn?.addEventListener('click', addSelectedFood);
+  dom.submitWalkBtn?.addEventListener('click', submitWalkBurn);
 
   [dom.walkGradeInput, dom.walkSpeedInput, dom.walkTimeInput].forEach(input => {
-    input?.addEventListener('input', saveWalkBurn);
-    input?.addEventListener('blur', saveWalkBurn);
+    input?.addEventListener('input', saveWalkDraft);
+    input?.addEventListener('blur', saveWalkDraft);
+    input?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') submitWalkBurn();
+    });
   });
 }
 
@@ -160,19 +164,32 @@ function renderWalk(day) {
   if (dom.walkSpeedInput && document.activeElement !== dom.walkSpeedInput) dom.walkSpeedInput.value = day.walk.speed ?? '';
   if (dom.walkTimeInput && document.activeElement !== dom.walkTimeInput) dom.walkTimeInput.value = formatWalkMinutes(day.walk.time);
   if (dom.walkWeightLabel) dom.walkWeightLabel.textContent = `(${round(latestWeightKg())}kg)`;
-  if (dom.walkBurnedResult) dom.walkBurnedResult.textContent = `${round(day.walk.burned || 0)} cal`;
+  const pendingBurn = calculateWalkBurn(day.walk);
+  if (dom.walkBurnedResult) dom.walkBurnedResult.textContent = `${round(pendingBurn)} cal`;
+  if (dom.submitWalkBtn) dom.submitWalkBtn.disabled = pendingBurn <= 0;
 }
 
-function saveWalkBurn() {
+function saveWalkDraft() {
   const day = getToday();
   day.walk.grade = dom.walkGradeInput?.value.trim() || '';
   day.walk.speed = dom.walkSpeedInput?.value.trim() || '';
   day.walk.time = dom.walkTimeInput?.value.trim() || '';
-  day.walk.burned = calculateWalkBurn(day.walk);
   saveState();
-  renderTotals(day);
   renderWalk(day);
-  renderHistory();
+}
+
+function submitWalkBurn() {
+  const day = getToday();
+  day.walk.grade = dom.walkGradeInput?.value.trim() || '';
+  day.walk.speed = dom.walkSpeedInput?.value.trim() || '';
+  day.walk.time = dom.walkTimeInput?.value.trim() || '';
+  const burned = calculateWalkBurn(day.walk);
+  if (burned <= 0) return;
+  day.walk.burned = (Number(day.walk.burned) || 0) + burned;
+  day.walk.time = '';
+  if (dom.walkTimeInput) dom.walkTimeInput.value = '';
+  saveState();
+  renderCalorieView();
 }
 
 function calculateWalkBurn(walk) {
@@ -213,7 +230,7 @@ function renderTotals(day) {
   const totals = calculateDayTotals(day);
   const calorieGoal = Number(state.calorieGoals.calories) || 1600;
   const proteinGoal = Number(state.calorieGoals.protein) || 150;
-  const netCalories = Math.max(0, totals.calories - (day.walk?.burned || 0));
+  const netCalories = totals.calories - (Number(day.walk?.burned) || 0);
 
   dom.calorieIntakeText.textContent = round(totals.calories);
   dom.calorieWalkText.textContent = round(day.walk?.burned || 0);
@@ -221,7 +238,7 @@ function renderTotals(day) {
   dom.calorieMacrosText.textContent = `${round(totals.protein)}p / ${round(totals.carbs)}c / ${round(totals.fats)}f`;
 
   const proteinPercent = proteinGoal > 0 ? (totals.protein / proteinGoal) * 100 : 0;
-  const caloriePercent = calorieGoal > 0 ? (netCalories / calorieGoal) * 100 : 0;
+  const caloriePercent = calorieGoal > 0 ? (Math.abs(netCalories) / calorieGoal) * 100 : 0;
   const proteinColor = proteinPercent >= 90 ? '#31c96f' : '#d93838';
   const calorieColor = getCalorieColor(netCalories, calorieGoal);
 
@@ -281,7 +298,7 @@ function renderHistory() {
   entries.forEach(day => {
     const totals = calculateDayTotals(day);
     const burned = Number(day.walk?.burned) || 0;
-    const net = Math.max(0, totals.calories - burned);
+    const net = totals.calories - burned;
     const li = document.createElement('li');
     li.className = 'calorie-history-item';
     li.textContent = `${day.date}: ${round(net)} (${round(totals.protein)}p / ${round(totals.carbs)}c / ${round(totals.fats)}f)${burned > 0 ? ` - walk burned: ${round(burned)}` : ''}`;

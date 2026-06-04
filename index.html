@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -203,8 +203,11 @@
             <input type="number" id="walkTimeInput" min="0" step="0.1" inputmode="decimal" placeholder="30">
           </label>
           <div class="walk-result">
-            <span>Burned</span>
-            <strong id="walkBurnedResult">0 cal</strong>
+            <div>
+              <span>Burned</span>
+              <strong id="walkBurnedResult">0 cal</strong>
+            </div>
+            <button id="submitWalkBtn" class="btn btn-primary" type="button">Submit</button>
           </div>
         </div>
 

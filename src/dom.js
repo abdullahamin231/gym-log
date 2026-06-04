@@ -62,5 +62,6 @@ export const dom = {
   walkTimeInput: document.getElementById('walkTimeInput'),
   walkWeightLabel: document.getElementById('walkWeightLabel'),
   walkBurnedResult: document.getElementById('walkBurnedResult'),
+  submitWalkBtn: document.getElementById('submitWalkBtn'),
   calorieHistoryList: document.getElementById('calorieHistoryList')
 };

@@ -15,6 +15,17 @@ function setHeaderSubtitle(text) {
   dom.headerSubtitle.textContent = text;
 }
 
+function initZoomLock() {
+  document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
+  document.addEventListener('gesturechange', e => e.preventDefault(), { passive: false });
+  document.addEventListener('wheel', e => {
+    if (e.ctrlKey) e.preventDefault();
+  }, { passive: false });
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0'].includes(e.key)) e.preventDefault();
+  });
+}
+
 function showScreen(screenName) {
   if (hasActiveSession() && screenName !== 'session') return;
   currentScreen = screenName;
@@ -59,6 +70,7 @@ function initNavigation() {
 }
 
 function boot() {
+  initZoomLock();
   initNavigation();
   initHistoryView({ getCurrentScreen: () => currentScreen });
   initSessionController({ setHeaderSubtitle, renderHistory });
