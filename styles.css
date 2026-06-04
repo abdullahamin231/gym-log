@@ -19,7 +19,10 @@
 
 * { box-sizing: border-box; }
 
-html, body { min-height: 100%; }
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+}
 body {
   margin: 0;
   background: var(--bg);
@@ -157,6 +160,7 @@ label {
 .app-subtitle { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .app-main { padding-top: 14px; padding-bottom: 80px; }
+.standalone-spacer { display: none; }
 
 .screen { display: flex; flex-direction: column; gap: 14px; }
 .hidden { display: none !important; }
@@ -202,6 +206,45 @@ label {
   border-bottom-color: var(--accent);
 }
 .tab:hover { color: var(--text); }
+
+@media (display-mode: standalone) {
+  html,
+  body {
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  .app {
+    min-height: 100dvh;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .app-header,
+  .tabbar {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .app-header {
+    top: 0;
+    min-height: calc(var(--header-h) + env(safe-area-inset-top));
+    padding: calc(8px + env(safe-area-inset-top)) 0 4px;
+  }
+
+  .tabbar {
+    top: calc(var(--header-h) + env(safe-area-inset-top));
+  }
+
+  .standalone-spacer {
+    display: block;
+    height: calc(var(--header-h) + 40px + env(safe-area-inset-top));
+  }
+
+  .app-main {
+    padding-top: 14px;
+  }
+}
 
 /* ---- Card / Section ---- */
 .card {
