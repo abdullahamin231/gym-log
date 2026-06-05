@@ -19,6 +19,15 @@ export function initCalorieView() {
   dom.foodModal?.addEventListener('click', e => {
     if (e.target === dom.foodModal) closeFoodModal();
   });
+  dom.openCalorieModalBtn?.addEventListener('click', openCalorieModal);
+  dom.closeCalorieModalBtn?.addEventListener('click', closeCalorieModal);
+  dom.calorieModal?.addEventListener('click', e => {
+    if (e.target === dom.calorieModal) closeCalorieModal();
+  });
+  dom.calorieInput?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') addManualCalories();
+  });
+  dom.addCalorieConfirmBtn?.addEventListener('click', addManualCalories);
   dom.foodSelect?.addEventListener('change', renderFoodModalNutrition);
   dom.foodWeightInput?.addEventListener('input', renderFoodModalNutrition);
   dom.foodWeightInput?.addEventListener('keydown', e => {
@@ -57,11 +66,12 @@ function getToday() {
   const date = todayKey();
   let day = state.calorieDays.find(entry => entry.date === date);
   if (!day) {
-    day = { id: uid(), date, foods: [], walk: { grade: '', speed: '', time: '', burned: 0 } };
+    day = { id: uid(), date, foods: [], manualCalories: [], walk: { grade: '', speed: '', time: '', burned: 0 } };
     state.calorieDays.push(day);
     saveState();
   }
   day.foods ||= [];
+  day.manualCalories ||= [];
   day.walk ||= { grade: '', speed: '', time: '', burned: 0 };
   return day;
 }
@@ -87,7 +97,7 @@ function saveGoals() {
 function renderFoodList(day) {
   if (!dom.foodList) return;
   dom.foodList.innerHTML = '';
-  if (!day.foods.length) {
+  if (!day.foods.length && !(day.manualCalories || []).length) {
     dom.foodList.innerHTML = '<div class="muted">No food logged today.</div>';
     return;
   }
@@ -108,6 +118,25 @@ function renderFoodList(day) {
     remove.textContent = 'Remove';
     remove.addEventListener('click', () => {
       day.foods = day.foods.filter(foodEntry => foodEntry.id !== entry.id);
+      saveState();
+      renderCalorieView();
+    });
+    item.append(label, calories, remove);
+    dom.foodList.appendChild(item);
+  });
+  (day.manualCalories || []).forEach(entry => {
+    const item = document.createElement('div');
+    item.className = 'logged-food';
+    const label = document.createElement('span');
+    label.textContent = `Manual calories`;
+    const calories = document.createElement('strong');
+    calories.textContent = `${round(entry.calories)} cal`;
+    const remove = document.createElement('button');
+    remove.className = 'btn ghost danger';
+    remove.type = 'button';
+    remove.textContent = 'Remove';
+    remove.addEventListener('click', () => {
+      day.manualCalories = day.manualCalories.filter(e => e.id !== entry.id);
       saveState();
       renderCalorieView();
     });
@@ -146,6 +175,27 @@ function renderFoodModalNutrition() {
   const totals = scaleFood(food, grams);
   dom.foodModalNutrition.textContent =
     `${round(totals.calories)} cal | ${round(totals.protein)}p / ${round(totals.carbs)}c / ${round(totals.fats)}f`;
+}
+
+function openCalorieModal() {
+  if (!dom.calorieModal || !dom.calorieInput) return;
+  dom.calorieInput.value = '';
+  dom.calorieModal.classList.remove('hidden');
+  dom.calorieInput?.focus();
+}
+
+function closeCalorieModal() {
+  dom.calorieModal?.classList.add('hidden');
+}
+
+function addManualCalories() {
+  const day = getToday();
+  const calories = Number(dom.calorieInput?.value);
+  if (!Number.isFinite(calories) || calories <= 0) return;
+  day.manualCalories.push({ id: uid(), calories });
+  saveState();
+  closeCalorieModal();
+  renderCalorieView();
 }
 
 function addSelectedFood() {
@@ -258,7 +308,7 @@ function getCalorieColor(calories, goal) {
 }
 
 function calculateDayTotals(day) {
-  return (day.foods || []).reduce((totals, entry) => {
+  const totals = (day.foods || []).reduce((totals, entry) => {
     const food = FOODS.find(item => item.id === entry.foodId);
     if (!food) return totals;
     const scaled = scaleFood(food, Number(entry.grams) || 0);
@@ -268,6 +318,10 @@ function calculateDayTotals(day) {
     totals.fats += scaled.fats;
     return totals;
   }, { calories: 0, protein: 0, carbs: 0, fats: 0 });
+  (day.manualCalories || []).forEach(entry => {
+    totals.calories += Number(entry.calories) || 0;
+  });
+  return totals;
 }
 
 function scaleFood(food, grams) {

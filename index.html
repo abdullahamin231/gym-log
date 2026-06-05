@@ -182,7 +182,10 @@
 
         <div class="section-head">
           <h2>Food</h2>
-          <button id="openFoodModalBtn" class="btn ghost" type="button">Add Food</button>
+          <div class="row" style="gap:0">
+            <button id="openFoodModalBtn" class="btn ghost" type="button">Add Food</button>
+            <button id="openCalorieModalBtn" class="btn ghost" type="button">Add Calories</button>
+          </div>
         </div>
         <div id="foodList" class="food-list"></div>
 
@@ -235,6 +238,20 @@
       </label>
       <div id="foodModalNutrition" class="food-modal-nutrition"></div>
       <button id="addFoodConfirmBtn" class="btn btn-primary btn-block" type="button">Add</button>
+    </div>
+  </div>
+
+  <div id="calorieModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="calorieModalTitle">
+    <div class="modal-panel">
+      <div class="section-head">
+        <h2 id="calorieModalTitle">Add Calories</h2>
+        <button id="closeCalorieModalBtn" class="btn ghost" type="button">Close</button>
+      </div>
+      <label>
+        Calories
+        <input type="number" id="calorieInput" min="1" step="1" inputmode="numeric" placeholder="200">
+      </label>
+      <button id="addCalorieConfirmBtn" class="btn btn-primary btn-block" type="button">Add</button>
     </div>
   </div>
 
