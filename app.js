@@ -4,7 +4,7 @@ import { dom } from './src/dom.js';
 import { initHistoryView, renderHistory } from './src/historyView.js';
 import { initPwa } from './src/pwa.js';
 import { ensureDefaultProgramSeededIfEmpty } from './src/programStore.js';
-import { renderPrograms } from './src/programView.js';
+import { initProgramView, renderPrograms } from './src/programView.js';
 import { hasActiveSession, initSessionController, resetSession, updateSessionUI } from './src/sessionController.js';
 import { renderSessionPreview, renderSessionSetup } from './src/sessionPreview.js';
 import { initWeightView, renderTrackWeight } from './src/weightView.js';
@@ -73,6 +73,7 @@ function boot() {
   initZoomLock();
   initNavigation();
   initHistoryView({ getCurrentScreen: () => currentScreen });
+  initProgramView({ renderSessionSetup });
   initSessionController({ setHeaderSubtitle, renderHistory });
   initBackup({
     onImported: () => {

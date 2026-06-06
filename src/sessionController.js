@@ -160,6 +160,10 @@ function renderSetsGrid() {
       logEntry.sets[i].reps = raw === '' ? null : parseInt(raw, 10);
     });
 
+    const repsField = document.createElement('div');
+    repsField.className = 'set-field';
+    repsField.appendChild(repsInput);
+
     const weightInput = document.createElement('input');
     weightInput.type = 'number';
     weightInput.min = '0';
@@ -172,31 +176,36 @@ function renderSetsGrid() {
       logEntry.sets[i].weight = raw === '' ? null : parseFloat(raw);
     });
 
-    row.append(label, weightInput, repsInput);
+    const weightField = document.createElement('div');
+    weightField.className = 'set-field';
+    weightField.appendChild(weightInput);
 
     if (prev?.sets?.length) {
       const prevSet = prev.sets[i];
-      const prevLine = document.createElement('div');
-      prevLine.className = 'set-prev';
-      if (!prevSet) {
-        prevLine.textContent = 'Last \u2014';
-      } else {
-        const reps = typeof prevSet.reps === 'number' ? prevSet.reps : null;
-        const weight = typeof prevSet.weight === 'number' ? prevSet.weight : null;
-        if (reps == null && weight == null) {
-          prevLine.textContent = 'Last \u2014';
-        } else if (reps != null && weight != null) {
-          prevLine.textContent = `Last ${weight}kg for ${reps}reps`;
-        } else if (weight != null) {
-          prevLine.textContent = `Last ${weight}kg for \u2014`;
-        } else {
-          prevLine.textContent = `Last \u2014 for ${reps}reps`;
-        }
-      }
-      row.appendChild(prevLine);
+      const hintText = formatPreviousSet(prevSet);
+      const weightPrev = document.createElement('div');
+      weightPrev.className = 'set-prev';
+      weightPrev.textContent = hintText;
+      const repsPrev = document.createElement('div');
+      repsPrev.className = 'set-prev';
+      repsPrev.textContent = hintText;
+      weightField.appendChild(weightPrev);
+      repsField.appendChild(repsPrev);
     }
+
+    row.append(label, weightField, repsField);
     dom.setsGrid.appendChild(row);
   }
+}
+
+function formatPreviousSet(prevSet) {
+  if (!prevSet) return 'Last \u2014';
+  const reps = typeof prevSet.reps === 'number' ? prevSet.reps : null;
+  const weight = typeof prevSet.weight === 'number' ? prevSet.weight : null;
+  if (reps == null && weight == null) return 'Last \u2014';
+  if (reps != null && weight != null) return `Last ${weight}kg x ${reps}`;
+  if (weight != null) return `Last ${weight}kg x \u2014`;
+  return `Last \u2014 x ${reps}`;
 }
 
 function cycleExercise(delta) {

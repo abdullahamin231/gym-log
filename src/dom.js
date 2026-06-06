@@ -39,6 +39,7 @@ export const dom = {
   logWeightBtn: document.getElementById('logWeightBtn'),
   weightChart: document.getElementById('weightChart'),
   weightLogStatus: document.getElementById('weightLogStatus'),
+  weightEntriesList: document.getElementById('weightEntriesList'),
   proteinGoalInput: document.getElementById('proteinGoalInput'),
   calorieGoalInput: document.getElementById('calorieGoalInput'),
   proteinProgressBar: document.getElementById('proteinProgressBar'),

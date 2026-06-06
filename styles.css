@@ -279,11 +279,20 @@ label {
   gap: 16px;
   padding: 12px 0 4px;
 }
+.program-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 2px solid var(--line-strong);
+  padding-bottom: 10px;
+}
 .program-sheet-title {
   font-family: var(--font-display);
   font-size: clamp(36px, 10vw, 72px);
   line-height: 0.95;
   letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
 }
 .program-day {
   display: grid;
@@ -299,6 +308,13 @@ label {
   padding-bottom: 4px;
 }
 .program-day-heading span { color: var(--muted); font-size: 12px; }
+.program-day-name-input {
+  flex: 1 1 220px;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.02em;
+}
 .program-block {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -317,6 +333,27 @@ label {
 }
 .program-prescription strong { font-family: var(--font-display); font-size: 16px; line-height: 1.15; font-weight: 400; }
 .program-prescription span { color: var(--muted); font-size: 11px; line-height: 1.25; }
+.program-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.program-editor-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 86px minmax(110px, 0.7fr) auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.program-editor-row input {
+  width: 100%;
+}
+.program-editor-row .btn {
+  min-width: 92px;
+}
 
 /* ---- Session Preview (Home) ---- */
 .session-preview {
@@ -515,11 +552,18 @@ label {
   font-weight: 500;
 }
 .set-row input::placeholder { font-weight: 300; color: rgba(107,106,99,0.5); }
+.set-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
 .set-prev {
-  grid-column: 2 / -1;
   font-size: 11px;
   color: var(--muted);
-  padding-top: 2px;
+  min-height: 16px;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 /* ---- Track Weight ---- */
@@ -542,6 +586,36 @@ label {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.weight-log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+}
+.weight-log-item {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.weight-log-item strong {
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  font-weight: 400;
+}
+.weight-log-item span {
+  color: var(--muted);
+  font-size: 11px;
+  text-align: right;
 }
 
 /* ---- History ---- */
@@ -803,6 +877,13 @@ label {
   .app-title { flex-direction: column; align-items: flex-start; gap: 1px; }
   .set-row { grid-template-columns: 68px minmax(0, 1fr) minmax(0, 1fr); }
   .program-block { grid-template-columns: 1fr; }
+  .program-toolbar { align-items: stretch; }
+  .program-editor-row { grid-template-columns: 1fr 76px; }
+  .program-editor-row label:first-child,
+  .program-editor-row label:nth-child(3),
+  .program-editor-row .btn {
+    grid-column: 1 / -1;
+  }
   .session-preview-ex-name { font-size: 17px; }
   .session-active #currentExercise { font-size: clamp(28px, 10vw, 48px); }
   .tab { font-size: 12px; }
