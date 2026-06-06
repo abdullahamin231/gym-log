@@ -745,6 +745,72 @@ label {
   letter-spacing: 0.02em;
   font-weight: 400;
 }
+.meal-plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.meal-plan-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.meal-plan-card-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+.meal-plan-card h3 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.meal-plan-card > strong,
+.meal-plan-total {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+}
+.meal-plan-ingredients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+}
+.meal-plan-ingredients li {
+  list-style: none;
+  padding: 5px 7px;
+  background: #0e0e0e;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.meal-plan-add {
+  min-height: 34px;
+  padding: 5px 14px;
+  font-size: 13px;
+}
+.meal-plan-misc {
+  background: #101010;
+}
+.meal-plan-misc p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.meal-plan-total {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
 .food-list,
 .logged-foods {
   display: flex;

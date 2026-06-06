@@ -1,4 +1,5 @@
 import { dom } from './dom.js';
+import { mealPlanDisplay } from './mealPlan.js';
 import { saveState, state } from './storage.js';
 import { uid } from './utils.js';
 
@@ -48,6 +49,7 @@ export function initCalorieView() {
 export function renderCalorieView() {
   const day = getToday();
   renderGoals();
+  renderMealPlan();
   renderFoodList(day);
   renderWalk(day);
   renderTotals(day);
@@ -94,6 +96,86 @@ function saveGoals() {
   renderCalorieView();
 }
 
+function renderMealPlan() {
+  if (!dom.mealPlanList) return;
+  dom.mealPlanList.innerHTML = '';
+
+  mealPlanDisplay.meals.forEach(meal => {
+    const item = document.createElement('section');
+    item.className = 'meal-plan-card';
+
+    const header = document.createElement('div');
+    header.className = 'meal-plan-card-head';
+
+    const title = document.createElement('h3');
+    title.textContent = meal.title;
+
+    const macros = document.createElement('strong');
+    macros.textContent = meal.macros;
+
+    const add = document.createElement('button');
+    add.className = 'btn ghost meal-plan-add';
+    add.type = 'button';
+    add.textContent = 'Add';
+    add.addEventListener('click', () => addMealPlanEntry(meal.title, meal.macroTotals));
+
+    const ingredients = document.createElement('ul');
+    ingredients.className = 'meal-plan-ingredients';
+    meal.ingredients.forEach(ingredient => {
+      const li = document.createElement('li');
+      li.textContent = ingredient;
+      ingredients.appendChild(li);
+    });
+
+    header.append(title, add);
+    item.append(header, macros, ingredients);
+    dom.mealPlanList.appendChild(item);
+  });
+
+  const misc = document.createElement('section');
+  misc.className = 'meal-plan-card meal-plan-misc';
+
+  const miscHeader = document.createElement('div');
+  miscHeader.className = 'meal-plan-card-head';
+
+  const miscTitle = document.createElement('h3');
+  miscTitle.textContent = mealPlanDisplay.misc.title;
+
+  const miscMacros = document.createElement('strong');
+  miscMacros.textContent = mealPlanDisplay.misc.macros;
+
+  const miscAdd = document.createElement('button');
+  miscAdd.className = 'btn ghost meal-plan-add';
+  miscAdd.type = 'button';
+  miscAdd.textContent = 'Add';
+  miscAdd.addEventListener('click', () => addMealPlanEntry(mealPlanDisplay.misc.title, mealPlanDisplay.misc.macroTotals));
+
+  const miscNote = document.createElement('p');
+  miscNote.textContent = `${mealPlanDisplay.misc.ingredients.join(', ')}. ${mealPlanDisplay.misc.note}`;
+
+  const total = document.createElement('div');
+  total.className = 'meal-plan-total';
+  total.textContent = `Daily total: ${mealPlanDisplay.dailyTotal}`;
+
+  miscHeader.append(miscTitle, miscAdd);
+  misc.append(miscHeader, miscMacros, miscNote, total);
+  dom.mealPlanList.appendChild(misc);
+}
+
+function addMealPlanEntry(label, macros) {
+  const day = getToday();
+  day.manualCalories.push({
+    id: uid(),
+    label,
+    calories: Number(macros.calories) || 0,
+    protein: Number(macros.protein) || 0,
+    carbs: Number(macros.carbs) || 0,
+    fats: Number(macros.fats) || 0
+  });
+  saveState();
+  renderCalorieView();
+}
+
 function renderFoodList(day) {
   if (!dom.foodList) return;
   dom.foodList.innerHTML = '';
@@ -128,9 +210,12 @@ function renderFoodList(day) {
     const item = document.createElement('div');
     item.className = 'logged-food';
     const label = document.createElement('span');
-    label.textContent = `Manual calories`;
+    const hasMacros = [entry.protein, entry.carbs, entry.fats].some(value => Number(value) > 0);
+    label.textContent = entry.label || 'Manual calories';
     const calories = document.createElement('strong');
-    calories.textContent = `${round(entry.calories)} cal`;
+    calories.textContent = hasMacros
+      ? `${round(entry.calories)} cal | ${round(entry.protein)}p / ${round(entry.carbs)}c / ${round(entry.fats)}f`
+      : `${round(entry.calories)} cal`;
     const remove = document.createElement('button');
     remove.className = 'btn ghost danger';
     remove.type = 'button';
@@ -320,6 +405,9 @@ function calculateDayTotals(day) {
   }, { calories: 0, protein: 0, carbs: 0, fats: 0 });
   (day.manualCalories || []).forEach(entry => {
     totals.calories += Number(entry.calories) || 0;
+    totals.protein += Number(entry.protein) || 0;
+    totals.carbs += Number(entry.carbs) || 0;
+    totals.fats += Number(entry.fats) || 0;
   });
   return totals;
 }

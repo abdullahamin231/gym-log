@@ -50,6 +50,7 @@ export const dom = {
   calorieWalkText: document.getElementById('calorieWalkText'),
   calorieNetText: document.getElementById('calorieNetText'),
   calorieMacrosText: document.getElementById('calorieMacrosText'),
+  mealPlanList: document.getElementById('mealPlanList'),
   foodList: document.getElementById('foodList'),
   openFoodModalBtn: document.getElementById('openFoodModalBtn'),
   openCalorieModalBtn: document.getElementById('openCalorieModalBtn'),
