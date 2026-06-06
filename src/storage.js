@@ -1,6 +1,9 @@
 import { dbName, dbVersion, storageKey } from './config.js';
 import { parseTargetReps, uid } from './utils.js';
 
+const stateBackupPath = '__state__/gym-log-state-v2';
+let backupWriteQueue = Promise.resolve();
+
 export const state = loadState();
 ensureUiDefaults();
 ensureCalorieDefaults();
@@ -33,6 +36,7 @@ export function loadState() {
 
 export function saveState() {
   localStorage.setItem(storageKey, JSON.stringify(state));
+  queueStateBackupWrite();
 }
 
 export function applyImportedState(next) {
@@ -47,6 +51,28 @@ export function applyImportedState(next) {
   ensureUiDefaults();
   ensureCalorieDefaults();
   saveState();
+}
+
+export async function restoreStateBackupIfNeeded() {
+  if (localStorage.getItem(storageKey) || localStorage.getItem('gym-log-state-v1')) return false;
+
+  try {
+    const db = await openDb();
+    const backup = await new Promise((resolve, reject) => {
+      const tx = db.transaction('files', 'readonly');
+      const req = tx.objectStore('files').get(stateBackupPath);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+    db.close?.();
+
+    if (!backup?.state) return false;
+    applyImportedState(backup.state);
+    return true;
+  } catch (e) {
+    console.warn('IndexedDB state restore skipped:', e);
+    return false;
+  }
 }
 
 export function ensureUiDefaults() {
@@ -76,6 +102,28 @@ function baseState() {
     calorieGoals: { protein: 150, calories: 1600 },
     calorieDays: []
   };
+}
+
+function queueStateBackupWrite() {
+  const snapshot = JSON.parse(JSON.stringify(state));
+  backupWriteQueue = backupWriteQueue
+    .then(() => writeStateBackup(snapshot))
+    .catch(e => console.warn('IndexedDB state backup skipped:', e));
+}
+
+async function writeStateBackup(snapshot) {
+  const db = await openDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction('files', 'readwrite');
+    tx.objectStore('files').put({
+      path: stateBackupPath,
+      updatedAt: new Date().toISOString(),
+      state: snapshot
+    });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close?.();
 }
 
 function migrateIfNeeded(parsed) {

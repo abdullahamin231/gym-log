@@ -7,6 +7,7 @@ import { ensureDefaultProgramSeededIfEmpty } from './src/programStore.js';
 import { initProgramView, renderPrograms } from './src/programView.js';
 import { hasActiveSession, initSessionController, resetSession, updateSessionUI } from './src/sessionController.js';
 import { renderSessionPreview, renderSessionSetup } from './src/sessionPreview.js';
+import { restoreStateBackupIfNeeded } from './src/storage.js';
 import { initWeightView, renderTrackWeight } from './src/weightView.js';
 
 let currentScreen = 'session';
@@ -69,7 +70,7 @@ function initNavigation() {
   });
 }
 
-function boot() {
+async function boot() {
   initZoomLock();
   initNavigation();
   initHistoryView({ getCurrentScreen: () => currentScreen });
@@ -86,9 +87,12 @@ function boot() {
   initCalorieView();
   initPwa();
 
+  await restoreStateBackupIfNeeded();
   ensureDefaultProgramSeededIfEmpty();
   showScreen('session');
   render();
 }
 
-boot();
+boot().catch(err => {
+  console.error('Boot failed', err);
+});
