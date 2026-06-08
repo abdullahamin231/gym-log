@@ -1,14 +1,9 @@
 import { dom } from './dom.js';
-import { mealPlanDisplay } from './mealPlan.js';
+import { foodList, mealPlanDisplay } from './mealPlan.js';
 import { saveState, state } from './storage.js';
 import { uid } from './utils.js';
 
-const FOODS = [
-  { id: 'eggs', name: 'Eggs', unit: '100g', calories: 143, protein: 12.6, carbs: 0.7, fats: 9.5 },
-  { id: 'chicken-breast-raw', name: 'Chicken breast uncooked', unit: '100g', calories: 120, protein: 22.5, carbs: 0, fats: 2.6 },
-  { id: 'boiled-basmati-rice', name: 'Boiled basmati rice', unit: '100g', calories: 121, protein: 2.0, carbs: 27, fats: 0.3 },
-  { id: 'cooking-oil', name: 'Oil', unit: '1g', calories: 9, protein: 0, carbs: 0, fats: 1 }
-];
+const FOODS = foodList;
 
 export function initCalorieView() {
   dom.proteinGoalInput?.addEventListener('blur', saveGoals);
@@ -185,7 +180,7 @@ function renderFoodList(day) {
   }
 
   day.foods.forEach(entry => {
-    const food = FOODS.find(item => item.id === entry.foodId);
+    const food = findFood(entry.foodId);
     if (!food) return;
     const item = document.createElement('div');
     item.className = 'logged-food';
@@ -255,8 +250,8 @@ function renderFoodOptions() {
 
 function renderFoodModalNutrition() {
   if (!dom.foodModalNutrition) return;
-  const food = FOODS.find(item => item.id === dom.foodSelect?.value) || FOODS[0];
-  const grams = Number(dom.foodWeightInput?.value) || (food.unit === '1g' ? 1 : 100);
+  const food = findFood(dom.foodSelect?.value) || FOODS[0];
+  const grams = Number(dom.foodWeightInput?.value) || food.unit;
   const totals = scaleFood(food, grams);
   dom.foodModalNutrition.textContent =
     `${round(totals.calories)} cal | ${round(totals.protein)}p / ${round(totals.carbs)}c / ${round(totals.fats)}f`;
@@ -285,7 +280,7 @@ function addManualCalories() {
 
 function addSelectedFood() {
   const day = getToday();
-  const food = FOODS.find(item => item.id === dom.foodSelect?.value);
+  const food = findFood(dom.foodSelect?.value);
   const grams = Number(dom.foodWeightInput?.value);
   if (!food || !Number.isFinite(grams) || grams <= 0) return;
   day.foods.push({ id: uid(), foodId: food.id, grams });
@@ -394,7 +389,7 @@ function getCalorieColor(calories, goal) {
 
 function calculateDayTotals(day) {
   const totals = (day.foods || []).reduce((totals, entry) => {
-    const food = FOODS.find(item => item.id === entry.foodId);
+    const food = findFood(entry.foodId);
     if (!food) return totals;
     const scaled = scaleFood(food, Number(entry.grams) || 0);
     totals.calories += scaled.calories;
@@ -413,14 +408,17 @@ function calculateDayTotals(day) {
 }
 
 function scaleFood(food, grams) {
-  const divisor = food.unit === '1g' ? 1 : 100;
-  const factor = grams / divisor;
+  const factor = grams / food.unit;
   return {
     calories: food.calories * factor,
     protein: food.protein * factor,
     carbs: food.carbs * factor,
     fats: food.fats * factor
   };
+}
+
+function findFood(foodId) {
+  return FOODS.find(item => item.id === foodId);
 }
 
 function renderHistory() {

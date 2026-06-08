@@ -1,5 +1,5 @@
 // unit is grams
-const database = {
+export const foodDatabase = {
   chickenBreast: {
     label: "Chicken breast",
     unit: 100,
@@ -32,6 +32,13 @@ const database = {
   },
 };
 
+export const foodList = Object.entries(foodDatabase).map(([id, food]) => ({
+  id,
+  name: food.label,
+  unit: food.unit,
+  ...food.macros,
+}));
+
 function addMacros(a, b) {
   return {
     calories: a.calories + b.calories,
@@ -42,7 +49,7 @@ function addMacros(a, b) {
 }
 
 function scaleFood(foodName, weightInGrams) {
-  const food = database[foodName];
+  const food = foodDatabase[foodName];
   if (!food) throw new Error(`Unknown food: ${foodName}`);
 
   const factor = weightInGrams / food.unit;
@@ -76,7 +83,7 @@ function roundMacros(macros) {
 }
 
 function ingredient(foodName, weight) {
-  const food = database[foodName];
+  const food = foodDatabase[foodName];
   if (!food) throw new Error(`Unknown food: ${foodName}`);
 
   return {

@@ -97,12 +97,22 @@ function startSession() {
     log: exercises.map(ex => ({
       name: ex.name,
       targetReps: ex.targetReps,
-      sets: Array.from({ length: ex.sets }, () => ({ reps: null, weight: null }))
+      sets: buildInitialSets(previousByName[normalizeExerciseName(ex.name)], ex.sets)
     }))
   };
 
   setHeaderSubtitle('Active');
   updateSessionUI();
+}
+
+function buildInitialSets(prev, count) {
+  return Array.from({ length: count }, (_, idx) => {
+    const prevSet = prev?.sets?.[idx];
+    return {
+      reps: typeof prevSet?.reps === 'number' ? prevSet.reps : null,
+      weight: typeof prevSet?.weight === 'number' ? prevSet.weight : null
+    };
+  });
 }
 
 function getLatestExerciseFromHistory(exerciseName) {
@@ -137,7 +147,13 @@ function renderSetsGrid() {
   dom.setsGrid.innerHTML = '';
 
   if (!Array.isArray(logEntry.sets)) logEntry.sets = [];
-  while (logEntry.sets.length < current.sets) logEntry.sets.push({ reps: null, weight: null });
+  while (logEntry.sets.length < current.sets) {
+    const prevSet = prev?.sets?.[logEntry.sets.length];
+    logEntry.sets.push({
+      reps: typeof prevSet?.reps === 'number' ? prevSet.reps : null,
+      weight: typeof prevSet?.weight === 'number' ? prevSet.weight : null
+    });
+  }
   if (logEntry.sets.length > current.sets) logEntry.sets = logEntry.sets.slice(0, current.sets);
 
   for (let i = 0; i < current.sets; i++) {
@@ -219,6 +235,7 @@ function changeCurrentExerciseSets(delta) {
   if (!session) return;
   const current = session.exercises[session.exerciseIndex];
   const logEntry = session.log[session.exerciseIndex];
+  const prev = session.previousByName?.[normalizeExerciseName(current?.name)];
   if (!current || !logEntry) return;
 
   const nextSets = Math.max(1, (current.sets || 1) + delta);
@@ -229,7 +246,13 @@ function changeCurrentExerciseSets(delta) {
   logEntry.targetReps = current.targetReps;
 
   if (!Array.isArray(logEntry.sets)) logEntry.sets = [];
-  while (logEntry.sets.length < nextSets) logEntry.sets.push({ reps: null, weight: null });
+  while (logEntry.sets.length < nextSets) {
+    const prevSet = prev?.sets?.[logEntry.sets.length];
+    logEntry.sets.push({
+      reps: typeof prevSet?.reps === 'number' ? prevSet.reps : null,
+      weight: typeof prevSet?.weight === 'number' ? prevSet.weight : null
+    });
+  }
   if (logEntry.sets.length > nextSets) logEntry.sets = logEntry.sets.slice(0, nextSets);
 
   updateSessionUI();
